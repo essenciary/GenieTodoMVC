@@ -1,5 +1,6 @@
-using Genie.Router
+using Genie
+using TodoMVC.TodosController
 
-route("/") do
-  serve_static_file("welcome.html")
-end
+route("/", TodosController.index)
+route("/todos", TodosController.create, method = POST)
+route("/todos/:id::Int/toggle", TodosController.toggle, method = POST)
