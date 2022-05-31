@@ -5,6 +5,7 @@ using Genie.Renderers.Html
 using Genie.Router
 using SearchLight
 using SearchLight.Validation
+using Genie.Renderers.Json
 
 function index()
   html(:todos, :index; todos = all(Todo))
@@ -33,7 +34,7 @@ function toggle()
 
   todo.completed = ! todo.completed
 
-  save(todo) && todo.completed
+  save(todo) && json(todo)
 end
 
 end

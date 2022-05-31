@@ -427,7 +427,7 @@ Edit the `app.jl.html` file and make it look like this
   <head>
     <meta charset="utf-8" />
     <title>Genie Todo MVC</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
   </head>
   <body>
     <div class="container">
@@ -454,7 +454,7 @@ Next, make sure that the `index.jl.html` file is updated as follows:
     <ul class="list-group">
       <% for_each(todos) do todo %>
         <li class="list-group-item form-check form-switch">
-          <input type="checkbox" checked="$(todo.completed ? true : false)" class="form-check-input" id="todo_$(todo.id)" />
+          <input type="checkbox" checked="$(todo.completed ? true : false)" class="form-check-input" id="todo_$(todo.id)"  value="(todo.id)" />
           <label class="form-check-label" for="todo_$(todo.id)">$(todo.todo)</label>
         </li>
       <% end %>
@@ -613,6 +613,8 @@ Notice the `:id::Int` component of the route. This is a dynamic route that will 
 Now, for the controller function, edit the `TodosController.jl` file and add the following code:
 
 ```julia
+using Genie.Renderers.Json
+
 function toggle()
   todo = findone(Todo, id = params(:id))
   if todo === nothing
@@ -621,11 +623,81 @@ function toggle()
 
   todo.completed = ! todo.completed
 
-  save(todo) && todo.completed
+  save(todo) && json(:todo => todo)
 end
 ```
 
-In the `toggle` function we are finding the todo item with the given id. If the todo item is not found, we return an error page. Otherwise, we toggle the completed status of the todo item and save it to the database, before returning the new status.
+In the `toggle` function we are finding the todo item with the given id. If the todo item is not found, we return an error page. Otherwise, we toggle the completed status of the todo item and save it to the database, before returning the todo's data as json.
 
 ### Enhancing our app with custom JavaScript and CSS
+
+The reason for returning a JSON response from the `toggle` function is that we want to update the todo item in the browser without reloading the page, by using JavaScript to make an AJAX request and then consume the response data in JavaScript. The simplest way to achieve this is by returning a JSON response which can be easily parsed by our JS code. The `json` function is a helper function (available in the `Genie.Renderers.Json` module) that will return a JSON response with the given data. Let's see how we can enhance our app with custom JavaScript!
+
+For making the AJAX request we'll use a library called Axios (<https://axios-http.com>). First, we'll load the script from the CDN, by adding this tag to our layout file (`app/layouts/app.jl.html`) right above the closing `</body>` tag:
+
+```html
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+```
+
+While we're at it, let's also include Cash.js, a very small utility library that makes manipulating the DOM a breeze (<https://github.com/fabiospampinato/cash>). Again, let's load it right above the closing `</body>` tag:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/cash-dom@8.1.1/dist/cash.min.js"></script>
+```
+
+We also need to create and include an extra JavaScript file where we will put our own code. Any file that we place inside the `public/` folder, in the root of our app, will be available to include in our HTML views. We'll create a new file called `app.js` in `public/js/` (`julia> touch("public/js/app.js")`) and we'll add it to our layout file (you guessed it, also right before the closing `</body>` tag):
+
+```html
+<script src="/js/app.js"></script>
+```
+
+Edit the file and put this in:
+
+```js
+$(function() {
+  $('input[type="checkbox"]').on('change', function() {
+    if ( this.checked) {
+      $(this).siblings('label').addClass('completed');
+    } else {
+      $(this).siblings('label').removeClass('completed');
+    }
+  });
+})
+```
+
+In addition, we'll add a CSS file to our app (`julia> touch("public/css/app.css")`), right before the closing `</head>` tag in our layout file.
+
+Let's start with the custom CSS, and use it to style our todo items. Add the following code to the `app.css` file:
+
+```html
+<link href="/css/app.css" rel="stylesheet" />
+```
+
+Then edit the `app.css` file and add the following CSS rules:
+
+```css
+.completed {
+  text-decoration: line-through;
+  color: #d9d9d9;
+}
+```
+
+Now refresh the page with the todo list and toggle the checkboxes - you should see how the todo items are styled when they are marked as completed. However, the actual state of the todo items is not persisted to the database yet. Add the following code snippet to the `app.js` file to perform a POST request via AJAX to the `/todos/:id/toggle` route and update the todo item's completed status:
+
+```js
+$(function() {
+  $('input[type="checkbox"]').on('change', function() {
+    axios({
+      method: 'post',
+      url: '/todos/' + $(this).attr('value') + '/toggle',
+      data: {}
+    })
+    .then(function(response) {
+      $('#todo_' + response.data.id.value).first().checked = response.data.completed;
+    });
+  });
+});
+```
+
+## Updating todo items
 
