@@ -482,6 +482,7 @@ We can now add the following content to the `_form.jl.html` file:
       <input type="text" class="form-control" placeholder="Add a new todo">
       <input type="submit" class="btn btn-outline-secondary" value="Add">
     </div>
+  </form>
 </div>
 ```
 
