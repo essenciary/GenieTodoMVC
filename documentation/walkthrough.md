@@ -701,3 +701,62 @@ $(function() {
 
 ## Updating todo items
 
+Now that we can change the completed status of todo items, we can also allow the users to edit the todo items themselves. We can do this by adding a double click event on our todo items that enable editing mode. Then we capture the `<ENTER>` key to save the changes (while the `<ESC>` key will cancel the changes). Add the following code to the `app.js` file to enable this functionality:
+
+```js
+$(function() {
+  $('li > label').on('dblclick', function() {
+    $(this).attr('contenteditable', true);
+  });
+  $('li > label').on('keyup', function(event) {
+    if (event.keyCode === 13) {
+      $(this).removeAttr('contenteditable');
+      axios({
+        method: 'post',
+        url: '/todos/' + $(this).data('todo-id') + '/update',
+        data: { todo: $(this).html() }
+      })
+      .then(function(response) {
+        $('label[data-todo-id="' + response.data.id.value + '"]').first().html(response.data.todo);
+      });
+    } else if (event.keyCode === 27) {
+      $(this).removeAttr('contenteditable');
+      $(this).text($(this).attr('data-original'));
+    }
+  });
+});
+```
+
+In order for the JavaScript code to work, we need to make a modification to our `app/resources/todos/views/index.jl.html` view. Replace the line that adds the `<label>` element with the following:
+
+```html
+<label class='form-check-label $(todo.completed ? "completed" : "")' data-original="$(todo.todo)" data-todo-id="$(todo.id)">$(todo.todo)</label>
+```
+
+Let's now add a new route and controller function to allow us to update the description of the todo items. Add the following code to the `routes.jl` file:
+
+```julia
+route("/todos/:id::Int/update", TodosController.update, method = POST)
+```
+
+Then in the `TodosController.jl` file, add the `update` function:
+
+```julia
+using Genie.Requests
+
+function update()
+  todo = findone(Todo, id = params(:id))
+  if todo === nothing
+    return Router.error(NOT_FOUND, "Todo item with id $(params(:id))", MIME"text/html")
+  end
+
+  todo.todo = replace(jsonpayload("todo"), "<br>"=>"")
+
+  save(todo) && json(todo)
+end
+```
+
+You'll notice that the function is very similar to the `toggle` function. The only difference is that we are updating the todo item's description instead of its completed status. The value of the `todo` parameter is the value of the `todo` field in the JSON payload which we access through the aptly named function `jsonpayload` provided by the `Genie.Requests` module. In addition we also do some basic input cleaning, by removing any `<br>` tags from the description.
+
+## Deleting todo items
+

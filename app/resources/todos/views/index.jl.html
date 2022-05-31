@@ -7,7 +7,8 @@
       <% for_each(todos) do todo %>
         <li class="list-group-item form-check form-switch">
           <input type="checkbox" checked="$(todo.completed ? true : false)" class="form-check-input" id="todo_$(todo.id)" value="$(todo.id)" />
-          <label class='form-check-label $(todo.completed ? "completed" : "")' for="todo_$(todo.id)">$(todo.todo)</label>
+          <label class='form-check-label $(todo.completed ? "completed" : "")' data-original="$(todo.todo)" data-todo-id="$(todo.id)">$(todo.todo)</label>
+          <button class="btn btn-outline-danger" type="button" value="$(todo.id)">Delete</button>
         </li>
       <% end %>
     </ul>

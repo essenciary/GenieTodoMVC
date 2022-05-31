@@ -20,3 +20,25 @@ $(function() {
     });
   });
 });
+
+$(function() {
+  $('li > label').on('dblclick', function() {
+    $(this).attr('contenteditable', true);
+  });
+  $('li > label').on('keyup', function(event) {
+    if (event.keyCode === 13) {
+      $(this).removeAttr('contenteditable');
+      axios({
+        method: 'post',
+        url: '/todos/' + $(this).data('todo-id') + '/update',
+        data: { todo: $(this).html() }
+      })
+      .then(function(response) {
+        $('label[data-todo-id="' + response.data.id.value + '"]').first().html(response.data.todo);
+      });
+    } else if (event.keyCode === 27) {
+      $(this).removeAttr('contenteditable');
+      $(this).text($(this).attr('data-original'));
+    }
+  });
+});
