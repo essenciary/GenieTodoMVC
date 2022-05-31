@@ -42,3 +42,24 @@ $(function() {
     }
   });
 });
+
+$(function() {
+  $('li').on('mouseenter', function() {
+    $(this).children('button').removeClass('invisible');
+  });
+  $('li').on('mouseleave', function() {
+    $(this).children('button').addClass('invisible');
+  });
+  $('li > button').on('click', function() {
+    if ( confirm("Are you sure you want to delete this todo?") ) {
+      axios({
+        method: 'post',
+        url: '/todos/' + $(this).attr('value') + '/delete',
+        data: {}
+      })
+      .then(function(response) {
+        $('#todo_' + response.data.id.value).first().parent().remove();
+      });
+    }
+  });
+});

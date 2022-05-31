@@ -760,3 +760,61 @@ You'll notice that the function is very similar to the `toggle` function. The on
 
 ## Deleting todo items
 
+It can be useful to also allow the users to remove todos, either completed or not. We can do this by adding a delete button to each todo item. Update the `index.jl.html` view to add the following code on the line under the `<label>` tag (above the closing `</li>` tag):
+
+```html
+<button class="btn btn-outline-danger invisible" type="button" value="$(todo.id)">Delete</button>
+```
+
+Next, add the following code to the `app.js` file:
+
+```js
+$(function() {
+  $('li').on('mouseenter', function() {
+    $(this).children('button').removeClass('invisible');
+  });
+  $('li').on('mouseleave', function() {
+    $(this).children('button').addClass('invisible');
+  });
+  $('li > button').on('click', function() {
+    if ( confirm("Are you sure you want to delete this todo?") ) {
+      axios({
+        method: 'post',
+        url: '/todos/' + $(this).attr('value') + '/delete',
+        data: {}
+      })
+      .then(function(response) {
+        $('#todo_' + response.data.id.value).first().parent().remove();
+      });
+    }
+  });
+});
+```
+
+What have we done so far? We have added a new button to each todo item that allows the user to delete the todo item. The button is invisible by default, but when the user hovers over the todo item, the button becomes visible. When the user clicks the button, a confirmation dialog is displayed. If the user confirms, an AJAX request is sent to the `/todos/:id/delete` route to delete the todo item. The response from the server is then used to remove the todo item from the page.
+
+Now, to add the server side logic. First add the following code to the `routes.jl` file:
+
+```julia
+route("/todos/:id::Int/delete", TodosController.delete, method = POST)
+```
+
+Then in the `TodosController.jl` file, add the `delete` function:
+
+```julia
+function delete()
+  todo = findone(Todo, id = params(:id))
+  if todo === nothing
+    return Router.error(NOT_FOUND, "Todo item with id $(params(:id))", MIME"text/html")
+  end
+
+  SearchLight.delete(todo)
+
+  json(Dict(:id => (:value => params(:id))))
+end
+```
+
+The `SearchLight.delete` function removes the todo item from the database and returns the modified todo item, setting its `id` value to `nothing` (to indicate that the object is no longer persisted in the database). However, our frontend needs the todo item's `id` value to be returned so that it can be removed from the page. We can accomplish this by returning the todo item's `id` value in the JSON response.
+
+## Aggregate values and filters
+

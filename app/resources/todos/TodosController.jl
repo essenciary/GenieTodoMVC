@@ -49,4 +49,15 @@ function update()
   save(todo) && json(todo)
 end
 
+function delete()
+  todo = findone(Todo, id = params(:id))
+  if todo === nothing
+    return Router.error(NOT_FOUND, "Todo item with id $(params(:id))", MIME"text/html")
+  end
+
+  SearchLight.delete(todo)
+
+  json(Dict(:id => (:value => params(:id))))
+end
+
 end
