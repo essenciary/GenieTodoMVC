@@ -819,3 +819,62 @@ The `SearchLight.delete` function removes the todo item from the database and re
 
 ## Aggregate values and filters
 
+The last piece of functionality of our TodoMVC application, is to allow the users to filter the todo items by their status. We can accomplish this by adding a new toolbar with 3 buttons (representing the 3 possible filters for our list: all, completed, and todo). For each of the buttons, we also want to show a count of the actual number of todos that match the filter.
+
+To keep our view code clean and easy to maintain, we'll create a new view partial to host our new UI elements. Add the following code to the `index.jl.html` view, right at the bottom:
+
+```html
+<% partial("app/resources/todos/views/_filters.jl.html") %>
+```
+
+Now, create the above view partial:
+
+```julia
+julia> touch("app/resources/todos/views/_filters.jl.html")
+```
+
+Edit the `_filters.jl.html` file and add the following code:
+
+```html
+<div class="btn-group" role="group">
+  <a class="btn btn-outline-primary $(active())" href="/">
+    All <span class="badge bg-secondary">$(alltodos)</span>
+  </a>
+  <a class='btn btn-outline-primary $(active("notdone"))' href="/?filter=notdone">
+    Not done <span class="badge bg-secondary">$(notdonetodos)</span>
+  </a>
+  <a class='btn btn-outline-primary $(active("done"))' href="/?filter=done">
+    Completed <span class="badge bg-secondary">$(donetodos)</span>
+  </a>
+</div>
+```
+
+Let's unpack this code. We have 3 `<a>` elements, styled as buttons, and rendered as a toolbar (thanks to the Twitter Bootstrap library we included in our page). Within the HTML code we interpolate a few pieces of Julia code that make our output dynamic. That is, for each button, we invoke a function called `active` which adds an "active" CSS class if the button matches the active filter. And within each button, inside the nested `<span>` tag, we interpolate the number of todos that match the filter.
+
+As such, we need to make sure that these values are defined and available in the view layer. We can do this by adding the following code to the `TodosController.jl` file (update the `index` function to look like this and add the extra `using` statement):
+
+```julia
+using TodoMVC.ViewHelper
+
+function index()
+  notdonetodos = count(Todo, completed = false)
+  donetodos = count(Todo, completed = true)
+  alltodos = notdonetodos + donetodos
+
+  todos = if params(:filter, "") == "done"
+    find(Todo, completed = true)
+  elseif params(:filter, "") == "notdone"
+    find(Todo, completed = false)
+  else
+    all(Todo)
+  end
+
+  html(:todos, :index; todos, notdonetodos, donetodos, alltodos, ViewHelper.active)
+end
+```
+
+In the above snippet we use `SearchLight.count` to run a `count` query against the database, matching the filters from the request `params`. We also reference a new module, `TodoMVC.ViewHelper` and pass `ViewHelper.active` into the view, together with all the count values that we computed. In an MVC application, helpers are modules that bundle functions which are used in the view layer, in order to keep the view code DRY and simple. In order for our code to work, we need to define the new module and the `active` function.
+
+```julia
+
+```
