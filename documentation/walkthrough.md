@@ -875,6 +875,27 @@ end
 
 In the above snippet we use `SearchLight.count` to run a `count` query against the database, matching the filters from the request `params`. We also reference a new module, `TodoMVC.ViewHelper` and pass `ViewHelper.active` into the view, together with all the count values that we computed. In an MVC application, helpers are modules that bundle functions which are used in the view layer, in order to keep the view code DRY and simple. In order for our code to work, we need to define the new module and the `active` function.
 
-```julia
+First, create the helper file:
 
+```julia
+julia> touch("app/helpers/ViewHelper.jl")
 ```
+
+Next, edit it and add the following code:
+
+```julia
+module ViewHelper
+
+using Genie
+
+function active(filter::String = "")
+  params(:filter, "") == filter ? "active" : ""
+end
+
+end
+```
+
+The `active` function is pretty simple. It takes a single optional argument, `filter`. If this matches the current GET request's `filter` parameter, the function returns the string "active", which adds the background color to the button.
+
+## Adding tests to our application
+
