@@ -899,3 +899,282 @@ The `active` function is pretty simple. It takes a single optional argument, `fi
 
 ## Adding tests to our application
 
+Tests are a critical part of developing high-quality software, that is easy to scale and maintain. Some developers take this to the extreme and prefer to write the tests before the code is written -- starting with failing tests that describe the desired behaviour and APIs, and making sure that the tests pass as they implement the minimum necessary feature. This is a good idea, but it may not be always possible or efficient. My theses is that it's fine whether the tests are written before or after the actual code it tests -- but that if the tests are written after, the project should not be considered complete until it has proper test coverage and all the tests pass.
+
+The Julia community recognizes the importance of tests and for this reason Julia has a built-in testing framework under the `Test` module. In addition, there are multiple packages that improve upon the `Test` API.
+
+### Running tests with Genie
+
+Genie uses the testing features available in Julia and some third party packages to set up a ready to use testing environment for Genie applications. Genie handles most of the configuration and boilerplate code for you, so you can focus on writing your tests. How does it work?
+
+When a new Genie MVC app is created, a `test/` folder is automatically added. Inside the `test/` folder, Genie creates a new Julia project, with all the necessary files and dependencies to test the Genie app. The main file for running the tests is `runtests.jl` (which is also the standard file for running tests in the Julia ecosystem). The `runtests.jl` file loads the Genie application, making its various MVC parts available to the tests. In addition, Genie adds and configures `TestSetExtensions`, a convenient package that improves upon Julia's default testing capabilities (<https://github.com/ssfrr/TestSetExtensions.jl>) and makes the running of the tests easier and more modular. With `TestSetExtensions` all we need to do is add test files in the `test/` folder and they will be automatically executed.
+
+#### Writing and running our first tests
+
+There are multiple types of tests, some of the most common ones being unit tests and integration tests. Unit tests are tests that test the behavior of a single piece of code. Integration tests are tests that test the behavior of a whole application. When it comes to MVC applications, unit tests are usually focused on testing the models, while integration tests cover larger features that involve at least two layers of the MVC stack.
+
+If you check the `test/` folder, you will see that a test file has already been added, called `todos_test.jl`. This was created automatically by `SearchLight` when we created our model. The file doesn't include any meaningful tests (that's our job!), but we already have more than enough to get us started.
+
+The `todos_test.jl` test file includes the necessary dependencies and defines a test set with a basic test.
+
+```julia
+using Test, SearchLight, Main.UserApp, Main.UserApp.Todos
+
+@testset "Todo unit tests" begin
+
+  ### Your tests here
+  @test 1 == 1
+
+end;
+```
+
+Let's make sure that everything is working as expected. We can run the tests by running the `runtests.jl` file.
+
+```bash
+julia --project runtests.jl
+```
+
+Our tests run successfully:
+
+```bash
+todos_test: .
+
+
+Test Summary: | Pass  Total  Time
+TodoMVC tests |    1      1  0.8s
+```
+
+##### Configuring the test database
+
+But looking at our output, we can see that an exception has been thrown while loading the app's initializers:
+
+```julia
+Loading initializers
+ERROR: SearchLight.Exceptions.MissingDatabaseConfigurationException("DB configuration for test not found")
+...output omitted ...
+in expression starting at TodoMVC/config/initializers/searchlight.jl:13
+```
+
+What Genie is telling us is that we have not configured a test database for SearchLight. This is a very important point: Genie automatically sets up and runs the application in a `test` environment, to make sure that we don't accidentally run tests against our development or production databases. However, because our tests don't use the database yet, none of the tests were impacted. Nevertheless, let's make sure that we have a test database configured.
+
+Setting up the test database is straight forward. Edit the `db/connection.yml` file and add the following lines:
+
+```yaml
+test:
+  adapter:  SQLite
+  database: db/test.sqlite3
+```
+
+Now if we run the tests again, we should not get any error.
+
+##### Adding `Todo` unit tests
+
+However, the included test is not very useful beyond making sure that our testing environment is working. We need to write some tests that actually test the behavior of our model. Our `Todo` model is quite simple but it's still very valuable to cover our basics by testing that:
+
+* The model is correctly initialized with the correct attributes (this will prevent accidental changes of the model's structure and defaults)
+* The model is correctly validated
+
+Let's proceed!
+
+Update the `todos_test.jl` file and make it look like this:
+
+```julia
+using Test, SearchLight, Main.UserApp, Main.UserApp.Todos
+using SearchLight.Validation
+
+@testset "Todo unit tests" begin
+  t = Todo()
+
+  @testset "Todo is correctly initialized" begin
+    @test t.todo == ""
+    @test t.completed == false
+  end
+
+  @testset "Todo validates correctly" begin
+
+    @testset "Todo is invalid" begin
+      v = validate(t)
+      @test haserrors(v) == true
+      @test haserrorsfor(v, :todo) == true
+      @test errorsfor(v, :todo)[1].error_type == :not_empty
+    end
+
+    @testset "Todo is valid" begin
+      t.todo = "Buy milk"
+      v = validate(t)
+
+      @test haserrors(v) == false
+      @test haserrorsfor(v, :todo) == false
+      @test errorsfor(v, :todo) |> isempty == true
+    end
+
+  end
+
+end;
+```
+
+We have defined multiple (nested) test sets that group testing logic by area of focus. Within each test set, we can define multiple tests, that cover `Todo` models initialisation and validation. All the 8 tests should pass.
+
+##### Interacting with the database
+
+Notice that we haven't touched the database yet. Let's add a few tests to make sure that our `Todo` items can be correctly persisted. Let's create a new file in the `test/` folder, named `todos_db_test.jl`.
+
+```julia
+using Test, SearchLight, Main.UserApp, Main.UserApp.Todos
+using SearchLight.Validation, SearchLight.Exceptions
+
+@testset "Todo DB tests" begin
+  t = Todo()
+
+  @testset "Invalid todo is not saved" begin
+    @test save(t) == false
+    @test_throws(InvalidModelException{Todo}, save!(t))
+  end
+
+end;
+```
+
+If we run the tests now, we'll see that all 10 tests pass. To make our tests execution faster, we can run just the tests we're currently working on:
+
+```bash
+julia --project runtests.jl todos_db_test
+```
+
+Our tests confirm that invalid todos are not persisted to the database. Now let's make sure that the valid ones do. Append the following code above the final `end;` of the `todos_db_test.jl` file:
+
+```julia
+@testset "Valid todo is saved" begin
+  t.todo = "Buy milk"
+  @test save(t) == true
+
+  tx = save!(t)
+  @test ispersisted(tx) == true
+
+  tx2 = findone(Todo, todo = "Buy milk")
+  @test pk(tx) == pk(tx2)
+end
+```
+
+We have set the `todo` field of our model to the string "Buy milk", making it valid. Then we attempt to save it to, and retrieve it from, the database, making sure that it was correctly persisted. Let's run the tests.
+
+Oh no, our new tests are failing! Fortunately the error is quite easy to debug.
+
+```julia
+Got exception outside of a @test
+  SQLite.SQLiteException("no such table: todos")
+```
+
+Of course: we previously configured our DB connection, but we haven't actually initialized the database -- nor did we run the migrations. In addition to setting up the test db, we must also make sure that we clean it up after we finish our tests -- otherwise future tests will find a database that contains data from previous tests.
+
+Here is the final version of our `todos_db_test.jl` file, that sets up the test db and cleans it up at the end of the test run:
+
+```julia
+using Test, SearchLight, Main.UserApp, Main.UserApp.Todos
+using SearchLight.Validation, SearchLight.Exceptions
+
+try
+  SearchLight.Migrations.init()
+catch
+end
+
+SearchLight.config.db_migrations_folder = abspath(normpath(joinpath("..", "db", "migrations")))
+SearchLight.Migrations.all_up!!()
+
+@testset "Todo DB tests" begin
+  t = Todo()
+
+  @testset "Invalid todo is not saved" begin
+    @test save(t) == false
+    @test_throws(InvalidModelException{Todo}, save!(t))
+  end
+
+  @testset "Valid todo is saved" begin
+    t.todo = "Buy milk"
+    @test save(t) == true
+
+    tx = save!(t)
+    @test ispersisted(tx) == true
+
+    tx2 = findone(Todo, todo = "Buy milk")
+    @test pk(tx) == pk(tx2)
+  end
+
+end;
+
+SearchLight.Migrations.all_down!!(confirm = false)
+```
+
+##### Adding integration tests
+
+Next, let's take a look at how to add a few integration tests, checking that the interactions between views, controller and model are correct.
+
+Let's add a new file to the `test/` folder, named `todos_integration_test.jl`.
+
+```julia
+using Test, SearchLight, Main.UserApp, Main.UserApp.Todos
+using Genie
+import Genie.HTTPUtils.HTTP
+
+try
+  SearchLight.Migrations.init()
+catch
+end
+
+cd("..")
+SearchLight.Migrations.all_up!!()
+Genie.up()
+
+@testset "TodoMVC integration tests" begin
+
+  @testset "No todos by default" begin
+    response = HTTP.get("http://localhost:8000/")
+    @test response.status == 200
+    @test contains(String(response.body), "Nothing to do")
+  end
+
+  t = save!(Todo(todo = "Buy milk"))
+
+  @testset "Todo is listed" begin
+    response = HTTP.get("http://localhost:8000/")
+    @test response.status == 200
+    @test contains(String(response.body), "Buy milk")
+  end
+
+  @test t.completed == false
+
+  @testset "Status toggling" begin
+    HTTP.post("http://localhost:8000/todos/$(t.id)/toggle")
+    @test findone(Todo, id = t.id).completed == true
+  end
+
+  @testset "Status toggling" begin
+    HTTP.post("http://localhost:8000/todos/$(t.id)/delete")
+    response = HTTP.get("http://localhost:8000/")
+    @test contains(String(response.body), "Nothing to do")
+  end
+
+end
+
+Genie.down()
+SearchLight.Migrations.all_down!!(confirm = false)
+cd(@__DIR__)
+```
+
+In the newly added file we configure the database access and start the web server. Then we use the `HTTP` web client to make requests to the server. Our tests call some of the URLs defined by our app and check that the responses are correct, looking for relevant text in the response body. Run the new tests (`julia --project runtests.jl todos_integration_test`), they should all pass.
+
+Finally, we can run all our tests to make sure that everything is working correctly.
+
+```bash
+julia --project runtests.jl
+
+todos_db_test: .....
+todos_integration_test: .......
+todos_test: ........
+
+
+Test Summary: | Pass  Total   Time
+TodoMVC tests |   20     20  23.3s
+```
+
+## Adding a REST API
+
