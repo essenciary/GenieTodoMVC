@@ -34,7 +34,7 @@ Genie.up()
     @test findone(Todo, id = t.id).completed == true
   end
 
-  @testset "Status toggling" begin
+  @testset "Status after deleting" begin
     HTTP.post("http://localhost:8000/todos/$(t.id)/delete")
     response = HTTP.get("http://localhost:8000/")
     @test contains(String(response.body), "Nothing to do")
