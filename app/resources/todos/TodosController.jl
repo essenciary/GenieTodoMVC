@@ -170,7 +170,11 @@ function delete()
     return JSONException(status = NOT_FOUND, message = "Todo not found") |> json
   end
 
-  SearchLight.delete(todo) |> json
+  try
+    SearchLight.delete(todo) |> json
+  catch ex
+    JSONException(status = INTERNAL_ERROR, message = string(ex)) |> json
+  end
 end
 
 end # V1

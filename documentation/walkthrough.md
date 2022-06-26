@@ -1441,7 +1441,11 @@ function delete()
     return JSONException(status = NOT_FOUND, message = "Todo not found") |> json
   end
 
-  SearchLight.delete(todo) |> json
+  try
+    SearchLight.delete(todo) |> json
+  catch ex
+    JSONException(status = INTERNAL_ERROR, message = string(ex)) |> json
+  end
 end
 ```
 
@@ -1744,4 +1748,172 @@ end # "Todos pagination"
 
 These are a bit more involved. First, we create a todo list, which is some fake data to mock our tests. Next, we iterate over this list and use the API itself to create all the todos. Once our data is in, it's time for the actual tests. The first test checks that when we don't specify any pagination parameters, the API returns all todos. Then we test the outputted data with various pagination scenarios, making sure that the data is split correctly between the various pages, according to the limit parameter.
 
-## Documenting our API with Swagger
+## Documenting our API with Swagger UI
+
+Swagger UI employs the OpenAPI standard and allows us to document our API in code, and at the same time to publish it via a web-based human-readable interface. In order to add support for Swagger UI we need to add two new packages to our project: `SwagUI` and `SwaggerMarkdown`.
+
+```julia
+pkg> add SwagUI, SwaggerMarkdown
+```
+
+We will set up the Swagger comments and the API documentation functionality into the `routes.jl` file. The routes for the web application remain the same, but the API routes are now augmented with `swagger"..."` annotations which are used to build the API documentation. The updated `routes.jl` file should look like this:
+
+```julia
+using Genie
+using TodoMVC.TodosController
+using SwagUI, SwaggerMarkdown
+
+route("/", TodosController.index)
+route("/todos", TodosController.create, method = POST)
+route("/todos/:id::Int/toggle", TodosController.toggle, method = POST)
+route("/todos/:id::Int/update", TodosController.update, method = POST)
+route("/todos/:id::Int/delete", TodosController.delete, method = POST)
+
+### API routes
+
+swagger"
+/api/v1/todos:
+  get:
+    summary: Get todos
+    description: Get the list of todos items with their status
+    parameters:
+      - in: query
+        name: filter
+        description: Todo completed filter with the values 'done' or 'notdone'
+        schema:
+          type: string
+          example: 'done'
+      - in: query
+        name: page
+        description: Page number used for paginating todo items
+        schema:
+          type: integer
+          example: 2
+      - in: query
+        name: limit
+        description: Number of todo items to return per page
+        schema:
+          type: integer
+          example: 10
+    responses:
+      '200':
+        description: A list of todos items
+  post:
+    summary: Create todo
+    description: Create a new todo item
+    requestBody:
+      description: Todo item to create
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            example:
+              todo: Buy milk
+              completed: false
+    responses:
+      '201':
+        description: Todo item created
+      '400':
+        description: Invalid todo item
+      '500':
+        description: Could not create todo item
+"
+route("/api/v1/todos", TodosController.API.V1.list, method = GET)
+route("/api/v1/todos", TodosController.API.V1.create, method = POST)
+
+swagger"
+/api/v1/todos/{id}:
+  get:
+    summary: Get todo
+    description: Get a todo item by id
+    parameters:
+      - in: path
+        name: id
+        description: Todo item id
+        required: true
+        schema:
+          type: integer
+          example: 1
+    responses:
+      '200':
+        description: A todo item
+      '404':
+        description: Todo item not found
+  patch:
+    summary: Update todo
+    description: Update a todo item by id
+    parameters:
+      - in: path
+        name: id
+        description: Todo item id
+        required: true
+        schema:
+          type: integer
+        example: 1
+    requestBody:
+      description: Todo item to update
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            example:
+              todo: Buy milk
+              completed: false
+    responses:
+      '200':
+        description: Todo item updated
+      '400':
+        description: Invalid todo item
+      '404':
+        description: Todo item not found
+      '500':
+        description: Could not update todo item
+  delete:
+    summary: Delete todo
+    description: Delete a todo item by id
+    parameters:
+      - in: path
+        name: id
+        description: Todo item id
+        required: true
+        schema:
+          type: integer
+          example: 1
+    responses:
+      '200':
+        description: Todo item deleted
+      '404':
+        description: Todo item not found
+      '500':
+        description: Could not delete todo item
+"
+route("/api/v1/todos/:id::Int", TodosController.API.V1.item, method = GET)
+route("/api/v1/todos/:id::Int", TodosController.API.V1.update, method = PATCH)
+route("/api/v1/todos/:id::Int", TodosController.API.V1.delete, method = DELETE)
+
+### Swagger UI route
+
+route("/api/v1/docs") do
+  render_swagger(
+    build(
+      OpenAPI("3.0", Dict("title" => "TodoMVC API", "version" => "1.0.0")),
+    ),
+    options = Options(
+      custom_favicon = "/favicon.ico",
+      custom_site_title = "TodoMVC app with Genie",
+      show_explorer = false
+    )
+  )
+end
+```
+
+First, we have grouped the routes by path, differentiating them by method. We have two distinct paths, `/api/v1/todos` and `/api/v1/todos/:id`. The first path accepts GET and POST requests to list and create todos, while the second path accepts GET, PATCH and DELETE requests to retrieve, update and delete a todo item.
+
+The swagger documentation is built by annotating the individual paths, sub-differentiating them by method. Then, for each path and method combination, we detail the request and response information, including properties like `summary`, `description`, `requestBody` and `responses`.
+
+In addition, at the end of the file we now have a new route to render the Swagger UI. The route invokes the `render_swagger` function, passing various configuration options to build the docs.
+
+This was all! Our API is now documented and we can use the Swagger UI to browse the API by accessing the `/api/v1/docs` route at <http://localhost:8000/api/v1/docs>. Not only that, but the browser is fully interactive, allowing us to run queries against the API and see the results in real time.
+
