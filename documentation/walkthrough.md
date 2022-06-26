@@ -1178,3 +1178,570 @@ TodoMVC tests |   20     20  23.3s
 
 ## Adding a REST API
 
+REST APIs allow other applications and software to access the data in our application. Just like the regular Julia libraries, REST APIs are meant to be employed by developers in order to build applications that are interoperable.
+
+### API versioning
+
+There are a few main ways to version REST APIs and we'll use what's arguably the most popular approach: versioning through URI path. This means that we'll place the major version of our API into the URL of the requests. Ex: mytodos.com/api/v1/todos. This is the preferred approach for Genie apps as it's easy to use and easy to understand, while at the same time promoting a modular architecture (as we're about to see).
+
+### Architecting our API
+
+Taking into account the versioning requirements, our API requests will be prefixed with `/api/v1` indicating that the current major version of the API is v1. In the future, if we'll introduce breaking changes into our API (meaning different endpoints, different HTTP methods, different request parameters, different responses and response structures, etc.), we'll need to introduce a new major version of the API (`v2`, `v3` and so on).
+
+Under the hood, each part of the URI will be implemented into a distinct Julia module, making our code modular and composable, for easier maintenance and extensibility. By encapsulating the API logic, as well as the specific version into dedicated modules and submodules we make our code future-proof and easy to maintain.
+
+### Defining our routes
+
+The REST API will expose similar endpoints to the web application itself. We want to allow the consumers of our API to create, retrieve, update and delete todos. The only difference is that we will not include a dedicated `toggle` endpoint, as REST APIs, by convention have a different update mechanism. That being said, let's define our routes (add these at the bottom of the file):
+
+```julia
+route("/api/v1/todos", TodosController.API.V1.list, method = GET)
+route("/api/v1/todos/:id::Int", TodosController.API.V1.item, method = GET)
+route("/api/v1/todos", TodosController.API.V1.create, method = POST)
+route("/api/v1/todos/:id::Int", TodosController.API.V1.update, method = PATCH)
+route("/api/v1/todos/:id::Int", TodosController.API.V1.delete, method = DELETE)
+```
+
+### The implementation plan
+
+We're defining four routes to handle the main four operations of the API: listing, creating, updating and deleting todos. Per the REST API best practices, we'll use dedicated HTTP methods for each of these operations. In addition, again per best practices, we'll use JSON to handle both requests and responses. Finally, to be good citizens of the web, we'll also extend our current set of features to add support for pagination to the list of todos.
+
+### Listing todos
+
+Lets begin with the first operation, the retrieval and listing of todo items. Add this at the bottom of the `TodosController.jl` file, right above the closing `end`.
+
+```julia
+### API
+
+module API
+module V1
+
+using TodoMVC.Todos
+using Genie.Router
+using Genie.Renderers.Json
+using ....TodosController
+
+function list()
+  all(Todo) |> json
+end
+
+function item()
+
+end
+
+function create()
+
+end
+
+function update()
+
+end
+
+function delete()
+
+end
+
+end # V1
+end # API
+```
+
+In the above snippet we define a new module called `API` and a submodule, `V1`. Inside `V1` we declare references to various dependencies with `using` statements. Very important, we bring into scope `Genie.Renderers.Json`, which will do all the heavy-lifting for building JSON responses for our API. You can think of it as the counterpart of `Genie.Renderers.HTML` that we used in our `TodosController` to generate HTML responses. And just like in the main controller, we'll leverage the features in `Genie.Router` to handle the requests data. We have also included a reference to the main TodosController module, using a relative namespace two levels up (notice the four dots `....`).
+
+Finally we define placeholder functions for each of the operations, matching the handlers we defined in our routes file. The `index` function even includes a bit of logic, to allow us to check that everything is well set up. Try it out at `http://localhost:8000/api/v1/todos`, you should get a JSON response with the list of todos.
+
+If everything works well it's time to refine our todos listing. It's important to keep our code DRY and reuse as much logic as possible between the HTML rendering in `TodosController.jl` and our JSON outputting API. Right now `TodosController.index` includes both the filtering and retrieval of the todo items, as well as the rendering of the HTML. The filtering and retrieval operations can be reused by the API, so we should decouple them from the HTML rendering.
+
+Replace the `TodosController.index` function with the following code:
+
+```julia
+function count_todos()
+  notdonetodos = count(Todo, completed = false)
+  donetodos = count(Todo, completed = true)
+
+  (
+    notdonetodos = notdonetodos,
+    donetodos = donetodos,
+    alltodos = notdonetodos + donetodos
+  )
+end
+
+function todos()
+  todos = if params(:filter, "") == "done"
+    find(Todo, completed = true)
+  elseif params(:filter, "") == "notdone"
+    find(Todo, completed = false)
+  else
+    all(Todo)
+  end
+end
+
+function index()
+  html(:todos, :index; todos = todos(), count_todos()..., ViewHelper.active)
+end
+```
+
+Here we refactor the `index` function to simple handle the HTML rendering, while we prepare the data in two new functions, `count_todos` and `todos`. We'll reuse these functions to prepare the JSON response for our API. It's worth noticing the flexibility of Julia in the way we pass the keyword arguments to the `html` function inside `index()`: we explicitly pass the `todos` keyword argument with the `todos()` value, we splat the `NamedTuple` received from `count_todos()` into three keyword arguments, and finally we pass the `ViewHelper.active` value as the last implicit keyword argument.
+
+Next, we can use these newly created function in our `API.V1.list` function, to retrieve the actual data:
+
+```julia
+function list()
+  TodosController.todos() |> json
+end
+```
+
+We can check that our refactoring hasn't broken anything by checking some URLs for both app and API:
+
+* <http://localhost:8000/>
+* <http://localhost:8000/?filter=notdone>
+* <http://localhost:8000/api/v1/todos>
+* <http://localhost:8000/api/v1/todos?filter=done>
+
+I haven't forgotten about our integration tests and you're welcome to run those as well - but they will be more useful once we add tests for the API too.
+
+#### Adding pagination
+
+I'm hoping that our todo list will not be that long to actually need pagination, but pagination is a common and very useful feature of REST APIs and it's worth seeing how it can be implemented. Especially as SearchLight makes it very straightforward. We want to accept two new optional query params, `page` and `limit`, to allow the consumer to paginate the list of todos. The `page` parameter will indicate the number of the page (starting with `1`) and `limit` will indicate the number of todos per page.
+
+As mentioned, the implementation is extremely simple, we only need to pass the extra arguments, with some reasonable defaults, to the `SearchLight.all` function that we use to get the todos. Update the `else` branch in the `TodosController.todos` function as follows:
+
+```julia
+function todos()
+  todos = if params(:filter, "") == "done"
+    find(Todo, completed = true)
+  elseif params(:filter, "") == "notdone"
+    find(Todo, completed = false)
+  else
+    # this line has changed
+    all(Todo; limit = params(:limit, SearchLight.SQLLimit_ALL) |> SQLLimit,
+              offset = (parse(Int, params(:page, "1"))-1) * parse(Int, params(:limit, "0")))
+  end
+end
+```
+
+All we need to do is pass the `limit` and `offset` arguments to the `all` function, and we're done. Given that these are optional (the users can make requests without pagination) we also set some good defaults: if there is no `limit` argument, we include all the todos by passing the `SearchLight.SQLLimit_ALL` constant to the `limit` argument. As for `offset`, this indicates how many items to skip - which are calculated by multiplying the page number by the number of items per page. If there is no `page` argument, we start with the first page by using `1` as the default -- but do notice that when we calculate the offset we use `page - 1` (this way on page 1 the offset is 0). This is because the `offset` argument in the database query represents the number of todos to skip, and for page 1 we want to skip 0 todos. As for the `limit`, the default here is 0 (meaning that if no `limit` argument is passed, we'll include all the todos with an offset of 0).
+
+We can test the new functionality by getting a couple of pages and limiting the number of todos per page to one:
+
+* <http://localhost:8000/api/v1/todos?page=1&limit=1>
+* <http://localhost:8000/api/v1/todos?page=2&limit=1>
+
+Also, no pagination will return all the todos, as expected <http://localhost:8000/api/v1/todos>.
+
+Please note that the web app does not support pagination yet. We'll skip it but if you want, you can do it as an exercise: add a new element to the UI to allow the users to navigate between pages of todos -- and set the `limit` to a reasonable constant value, like 20.
+
+### Creating todos
+
+We want to allow the consumer of our API to add new todos. We already have the route and the corresponding route handler -- it's now time to add the actual code. Update the `API.V1.create` function as follows:
+
+```julia
+using Genie.Requests
+using SearchLight.Validation
+using SearchLight
+
+function check_payload(payload = Requests.jsonpayload())
+  isnothing(payload) && throw(JSONException(status = BAD_REQUEST, message = "Invalid JSON message received"))
+
+  payload
+end
+
+function persist(todo)
+  validator = validate(todo)
+  if haserrors(validator)
+    return JSONException(status = BAD_REQUEST, message = errors_to_string(validator)) |> json
+  end
+
+  try save!(todo)
+    json(todo, status = CREATED, headers = Dict("Location" => "/api/v1/todos/$(todo.id)"))
+  catch ex
+    JSONException(status = INTERNAL_ERROR, message = string(ex)) |> json
+  end
+end
+
+function create()
+  payload = try
+    check_payload()
+  catch ex
+    return json(ex)
+  end
+
+  todo = Todo(todo = get(payload, "todo", ""), completed = get(payload, "completed", false))
+
+  persist(todo)
+end
+```
+
+First we declare that we'll be `using` three extra modules. `Genie.Requests` provides a higher level API to handle requests data, and we'll rely on it to help us work with the JSON payloads. The other is `SearchLight.Validation`, which we've already seen in action and help us to validate the data we receive from the consumer of the API. While `SearchLight` gives us access to the `save!` method.
+
+In the `create` function, first we check if the request payload is valid by invoking the `check_payload` function. Given that we expect a JSON payload, in the `check_payload` we verify if the body of the request can be converted to JSON. We use the `Requests.jsonpayload` function to do that. If the payload is not valid JSON, the `Requests.jsonpayload` function will return `nothing`. In this case, we throw an exception in the `check_payload`, informing the user that the message received is not valid JSON.
+
+Once we are sure that we have received a valid JSON payload, we parse it, looking for relevant data to create a new todo item. We provide some good defaults and create a new instance of our `Todo` model, using the provided payload. We then attempt to persist the newly created model to the database, by passing it to the `persist` function, where we apply our model validations. If there are any validation errors, we return an exception with the errors details. If the validations pass, we save the todo in the database and return a JSON response with the newly created todo and the status code `CREATED`. As a best practice, we also pass an additional `Location` header, which is the URL of the newly created todo. If for some reason the todo could not be saved, we return an exception with the error details.
+
+We can test the various scenarios using an HTTP client like Postman or Paw. But we'll skip that for now and just add integration tests in a few minutes.
+
+### Updating todos
+
+Updating todos should be a breeze, especially as we've already implemented our validation logic. First, we need to update the `API.V1.persist` function as follows:
+
+```julia
+function persist(todo)
+  validator = validate(todo)
+  if haserrors(validator)
+    return JSONException(status = BAD_REQUEST, message = errors_to_string(validator)) |> json
+  end
+
+  try
+    if ispersisted(todo)
+      save!(todo)
+      json(todo, status = OK)
+    else
+      save!(todo)
+      json(todo, status = CREATED, headers = Dict("Location" => "/api/v1/todos/$(todo.id)"))
+    end
+  catch ex
+    JSONException(status = INTERNAL_ERROR, message = string(ex)) |> json
+  end
+end
+```
+
+This change allows us to detect if the todo we're attempting to save was already persisted to the database or not. If it was, we'll update the todo in the database, otherwise we'll create a new one -- and we need to return the correct response, based on the database operation we performed.
+
+Now, for the `API.V1.update` function:
+
+```julia
+function update()
+  payload = try
+    check_payload()
+  catch ex
+    return json(ex)
+  end
+
+  todo = findone(Todo, id = params(:id))
+  if todo === nothing
+    return JSONException(status = NOT_FOUND, message = "Todo not found") |> json
+  end
+
+  todo.todo = get(payload, "todo", todo.todo)
+  todo.completed = get(payload, "completed", todo.completed)
+
+  persist(todo)
+end
+```
+
+We start by checking if the payload is valid. If it is, we continue by retriving the corresponding todo from the database, using the `id` passed as part of the URL. If the todo is not found, we return an exception. Otherwise, we update the todo with the provided data, again, applying some good defaults (in this case, keeping the existing value if a new value was not provided). Finally, we attempt to persist the todo in the database.
+
+### Deleting todos
+
+The last opperation that our API should support is the deletion of the todo items. We'll update the `API.V1.delete` function as follows:
+
+```julia
+function delete()
+  todo = findone(Todo, id = params(:id))
+  if todo === nothing
+    return JSONException(status = NOT_FOUND, message = "Todo not found") |> json
+  end
+
+  SearchLight.delete(todo) |> json
+end
+```
+
+The code attempts to retrieve the todo from the database, based on the `id` passed as part of the URL. If the todo is not found, we return an exception. Otherwise, we delete the todo from the database and return it.
+
+### Retrieving todos
+
+For retrieving individual todo items from the database, we only need to check that the corresponding todo item exists by looking it up by id. If it does not, we return a 404 error. If it does, we return the todo. Here is the code:
+
+```julia
+function item()
+  todo = findone(Todo, id = params(:id))
+  if todo === nothing
+    return JSONException(status = NOT_FOUND, message = "Todo not found") |> json
+  end
+
+  todo |> json
+end
+```
+
+## Writing tests for our API
+
+It's time to see our API in action by writing a test suite to check all the endpoints and the various scenarious we've implemented. Let's start by adding a new tast file for our API:
+
+```julia
+julia> touch("test/todos_API_test.jl")
+end
+
+Next, we'll add the test suite to our newly created file:
+
+```julia
+using Test, SearchLight, Main.UserApp, Main.UserApp.Todos
+using Genie
+import Genie.HTTPUtils.HTTP
+import Genie.Renderers.Json.JSONParser.JSON3
+
+try
+  SearchLight.Migrations.init()
+catch
+end
+
+cd("..")
+SearchLight.Migrations.all_up!!()
+Genie.up()
+
+const API_URL = "http://localhost:8000/api/v1/todos"
+
+@testset "TodoMVC REST API tests" begin
+
+  @testset "No todos by default" begin
+    response = HTTP.get(API_URL)
+    @test response.status == Genie.Router.OK
+    @test isempty(JSON3.read(String(response.body))) == true
+  end
+
+end
+
+Genie.down()
+SearchLight.Migrations.all_down!!(confirm = false)
+cd(@__DIR__)
+```
+
+Besides the declaration of the used dependencies, the first and the last parts of the file are the setup and teardown of the tests, just like we did in the integration tests. It's where we setup the test database and the API server -- while at the end we remove the test data and stop the web server.
+
+All our tests will be placed inside a main testset called "TodoMVC REST API tests". And our first test simply checks that when initiating our test suit our database does not contain any todos. We make a GET request to our `/todos` endpoint which lists the todo items, and we verify that the response is a 200 OK status code and that the response body is empty.
+
+Next let's add tests for todo creation. Append this under the "No todos by default" testset:
+
+```julia
+@testset "Todo creation" begin
+
+  @testset "Incorrect content-type should fail todo creation" begin
+    response = HTTP.post(API_URL, ["Content-Type" => "text/plain"], JSON3.write(Dict("todo" => "Buy milk")); status_exception = false)
+    @test response.status == Genie.Router.BAD_REQUEST
+    @test JSON3.read(String(response.body)) == "Invalid JSON message received"
+  end
+
+  @testset "Invalid JSON should fail todo creation" begin
+    response = HTTP.post(API_URL, ["Content-Type" => "application/json"], "Surrender your data!"; status_exception = false)
+    @test response.status == Genie.Router.BAD_REQUEST
+    @test JSON3.read(String(response.body)) == "Invalid JSON message received"
+  end
+
+  @testset "Valid JSON with invalid data should fail todo creation" begin
+    response = HTTP.post(API_URL, ["Content-Type" => "application/json"], JSON3.write(Dict("todo" => "", "completed" => true)); status_exception = false)
+    @test response.status == Genie.Router.BAD_REQUEST
+    @test JSON3.read(String(response.body)) == "Todo should not be empty"
+  end
+
+  @testset "No todos should've been created so far" begin
+    response = HTTP.get(API_URL)
+    @test response.status == Genie.Router.OK
+    @test isempty(JSON3.read(String(response.body))) == true
+  end
+
+  @testset "Valid payload should create todo" begin
+    response = HTTP.post(API_URL, ["Content-Type" => "application/json"], JSON3.write(Dict("todo" => "Buy milk")))
+    @test response.status == Genie.Router.CREATED
+    @test Dict(response.headers)["Location"] == "/api/v1/todos/1"
+    @test JSON3.read(String(response.body))["todo"] == "Buy milk"
+  end
+
+  @testset "One todo should be created" begin
+    response = HTTP.get(API_URL)
+    @test response.status == Genie.Router.OK
+    todos = JSON3.read(String(response.body))
+    @test isempty(todos) == false
+    @test length(todos) == 1
+    @test todos[1]["todo"] == "Buy milk"
+
+    response = HTTP.get("$API_URL/1")
+    @test response.status == Genie.Router.OK
+    todo = JSON3.read(String(response.body))
+    @test todo["todo"] == "Buy milk"
+  end
+
+end # "Todo creation"
+```
+
+Here we have a multitude of tests that verify all the assumptions related to todo creation. The first test verifies that when we send a request with an incorrect content-type, the response has a 400 Bad Request status code and that the response body the error message "Invalid JSON message received". The second test checks that when we send a request with an invalid JSON payload, the API responds in the same manner, with a BAD_REQUEST status and the same error message.
+
+The third test checks that despite the valid content-type and JSON payload, if the todo data is not valid, the request will fail with a BAD_REQUEST status and the error message "Todo should not be empty". The fourth test makes an extra check that despite the previous error responses, indeed, no todos have been created up to this point.
+
+Finally, the last two tests confirm that when we send a valid payload, the API successfully creates a new todo, returns it with a 201 Created status code and the location header set to the new todo's URL, and that we can retrive it.
+
+Next, for the todo updating tests:
+
+```julia
+@testset "Todo updating" begin
+
+    @testset "Incorrect content-type should fail todo update" begin
+      response = HTTP.patch("$API_URL/1", ["Content-Type" => "text/plain"], JSON3.write(Dict("todo" => "Buy soy milk")); status_exception = false)
+      @test response.status == Genie.Router.BAD_REQUEST
+      @test JSON3.read(String(response.body)) == "Invalid JSON message received"
+    end
+
+    @testset "Invalid JSON should fail todo update" begin
+      response = HTTP.patch("$API_URL/1", ["Content-Type" => "application/json"], "Surrender your data!"; status_exception = false)
+      @test response.status == Genie.Router.BAD_REQUEST
+      @test JSON3.read(String(response.body)) == "Invalid JSON message received"
+    end
+
+    @testset "Valid JSON with invalid data should fail todo update" begin
+      response = HTTP.patch("$API_URL/1", ["Content-Type" => "application/json"], JSON3.write(Dict("todo" => "", "completed" => true)); status_exception = false)
+      @test response.status == Genie.Router.BAD_REQUEST
+      @test JSON3.read(String(response.body)) == "Todo should not be empty"
+    end
+
+    @testset "One existing todo should be unchanged" begin
+      response = HTTP.get(API_URL)
+      @test response.status == Genie.Router.OK
+      todos = JSON3.read(String(response.body))
+      @test isempty(todos) == false
+      @test length(todos) == 1
+      @test todos[1]["todo"] == "Buy milk"
+    end
+
+    @testset "Valid payload should update todo" begin
+      response = HTTP.patch("$API_URL/1", ["Content-Type" => "application/json"], JSON3.write(Dict("todo" => "Buy vegan milk")))
+      @test response.status == Genie.Router.OK
+      @test JSON3.read(String(response.body))["todo"] == "Buy vegan milk"
+    end
+
+    @testset "One existing todo should be changed" begin
+      response = HTTP.get(API_URL)
+      @test response.status == Genie.Router.OK
+      todos = JSON3.read(String(response.body))
+      @test isempty(todos) == false
+      @test length(todos) == 1
+      @test todos[1]["todo"] == "Buy vegan milk"
+    end
+
+    @testset "Updating a non existing todo should fail" begin
+      response = HTTP.patch("$API_URL/100", ["Content-Type" => "application/json"], JSON3.write(Dict("todo" => "Buy apples")); status_exception = false)
+      @test response.status == Genie.Router.NOT_FOUND
+      @test JSON3.read(String(response.body)) == "Todo not found"
+    end
+
+  end # "Todo updating"
+  ```
+
+These tests follow the logic of the todo creation testset, just adapted to the todo updating scenario -- so we won't get into many details about these.
+
+Now, let's add the todo deletion tests:
+
+```julia
+@testset "Todo deletion" begin
+
+  @testset "Deleting a non existing todo should fail" begin
+    response = HTTP.delete("$API_URL/100", ["Content-Type" => "application/json"]; status_exception = false)
+    @test response.status == Genie.Router.NOT_FOUND
+    @test JSON3.read(String(response.body)) == "Todo not found"
+  end
+
+  @testset "One existing todo should be deleted" begin
+    response = HTTP.delete("$API_URL/1")
+    @test response.status == Genie.Router.OK
+    @test JSON3.read(String(response.body))["todo"] == "Buy vegan milk"
+    @test HTTP.get("$API_URL/1"; status_exception = false).status == Genie.Router.NOT_FOUND
+  end
+
+  @testset "No todos should've been left" begin
+    response = HTTP.get(API_URL)
+    @test response.status == Genie.Router.OK
+    @test isempty(JSON3.read(String(response.body))) == true
+  end
+
+end # "Todo deletion"
+```
+
+The logic should be pretty clear by now. The first test checks that when we try to delete a non-existing todo, the API responds with a NOT_FOUND status and the error message "Todo not found". The second test checks that when we delete an existing todo, the API responds with a OK status and the todo data. While the last test in this testset makes sure that no todos are left in the database.
+
+And finally, to complete our testsuite, we'll add the pagination tests:
+
+```julia
+@testset "Todos pagination" begin
+  todo_list = [
+    Dict("todo" => "Buy milk", "completed" => false),
+    Dict("todo" => "Buy apples", "completed" => false),
+    Dict("todo" => "Buy vegan milk", "completed" => true),
+    Dict("todo" => "Buy vegan apples", "completed" => true),
+  ]
+
+  for todo in todo_list
+    response = HTTP.post(API_URL, ["Content-Type" => "application/json"], JSON3.write(todo))
+  end
+
+  @testset "No pagination should return all todos" begin
+    response = HTTP.get(API_URL)
+    @test response.status == Genie.Router.OK
+    todos = JSON3.read(String(response.body))
+    @test isempty(todos) == false
+    @test length(todos) == length(todo_list)
+  end
+
+  @testset "One per page" begin
+    index = 1
+    for page in 1:length(todo_list)
+      response = HTTP.get("$API_URL?page=$(page)&limit=1")
+      todos = JSON3.read(String(response.body))
+      @test length(todos) == 1
+      @test todos[1]["todo"] == todo_list[index]["todo"]
+      index += 1
+    end
+  end
+
+  @testset "Two per page" begin
+    response = HTTP.get("$API_URL?page=1&limit=2")
+    todos = JSON3.read(String(response.body))
+    @test length(todos) == 2
+    @test todos[1]["todo"] == todo_list[1]["todo"]
+    @test todos[2]["todo"] == todo_list[2]["todo"]
+
+    response = HTTP.get("$API_URL?page=2&limit=2")
+    todos = JSON3.read(String(response.body))
+    @test length(todos) == 2
+    @test todos[1]["todo"] == todo_list[3]["todo"]
+    @test todos[2]["todo"] == todo_list[4]["todo"]
+  end
+
+  @testset "Three per page" begin
+      response = HTTP.get("$API_URL?page=1&limit=3")
+      todos = JSON3.read(String(response.body))
+      @test length(todos) == 3
+      @test todos[1]["todo"] == todo_list[1]["todo"]
+      @test todos[2]["todo"] == todo_list[2]["todo"]
+      @test todos[3]["todo"] == todo_list[3]["todo"]
+
+      response = HTTP.get("$API_URL?page=2&limit=3")
+      todos = JSON3.read(String(response.body))
+      @test length(todos) == 1
+      @test todos[1]["todo"] == todo_list[4]["todo"]
+    end
+
+    @testset "Four per page" begin
+      response = HTTP.get("$API_URL?page=1&limit=4")
+      todos = JSON3.read(String(response.body))
+      @test length(todos) == 4
+      @test todos[1]["todo"] == todo_list[1]["todo"]
+      @test todos[2]["todo"] == todo_list[2]["todo"]
+      @test todos[3]["todo"] == todo_list[3]["todo"]
+      @test todos[4]["todo"] == todo_list[4]["todo"]
+
+      response = HTTP.get("$API_URL?page=2&limit=4")
+      todos = JSON3.read(String(response.body))
+      @test isempty(todos) == true
+    end
+
+    @testset "Five per page" begin
+      response = HTTP.get("$API_URL?page=1&limit=5")
+      todos = JSON3.read(String(response.body))
+      @test length(todos) == 4
+      @test todos[1]["todo"] == todo_list[1]["todo"]
+      @test todos[2]["todo"] == todo_list[2]["todo"]
+      @test todos[3]["todo"] == todo_list[3]["todo"]
+      @test todos[4]["todo"] == todo_list[4]["todo"]
+    end
+end # "Todos pagination"
+```
+
+These are a bit more involved. First, we create a todo list, which is some fake data to mock our tests. Next, we iterate over this list and use the API itself to create all the todos. Once our data is in, it's time for the actual tests. The first test checks that when we don't specify any pagination parameters, the API returns all todos. Then we test the outputted data with various pagination scenarios, making sure that the data is split correctly between the various pages, according to the limit parameter.
+
+## Documenting our API with Swagger
