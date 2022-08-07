@@ -290,23 +290,17 @@ In addition, per the instructions in the `Dockerfile`, it will bind the app's po
 the port 80 of the Docker host (that is, your computer). This means that, after the familiar Genie loading screen, once confirmed
 that the application is ready, you can access it by simply visiting <http://localhost> in your browser.
 
-## Deploying Genie apps with Docker containers
+##
+
+## Deploying Genie apps with Git and Docker containers
 
 Now that we have confirmed that our application runs correctly in a Docker container, we can deploy our application on any of
 the multitude of web hosting services that support Docker container deployments. By using Docker containers, we can be sure
 that the exact setup described in the `Dockerfile` and tested on our machine will be run and configured by our hosting service.
 
-Let's take a quick look at deploying our Genie app with Docker on some of the most popular hosting services.
-
 ### AWS
 
 
-
-### Azure
-
-### GCP
-
-### Deploy to Kubernetes cluster
 
 ## Deploying Genie apps behind a web server
 
