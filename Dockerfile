@@ -10,7 +10,7 @@ COPY . /home/genie/app
 WORKDIR /home/genie/app
 
 # configure permissions
-RUN chown genie:genie -R *
+RUN chown -R genie:genie /home/
 
 RUN chmod +x bin/repl
 RUN chmod +x bin/server
