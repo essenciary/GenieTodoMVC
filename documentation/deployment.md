@@ -304,6 +304,7 @@ the app's folder, run the following (you will need to have `git` installed on yo
 
 ```bash
 > git init
+> git add .
 > git commit -m "initial commit"
 > git branch -M main
 > git remote add origin <HTTPS URL OF YOUR GITHUB REPO>
@@ -312,7 +313,58 @@ the app's folder, run the following (you will need to have `git` installed on yo
 
 ### Setting up Github CI
 
+Once our app's code has been pushed to Github we can set up our CI workflow to take advantage of our test suite. This integration
+will automatically run every time we push code to our repo.
 
+Inside the root of our app create a new folder named `.github` -- and inside this create a new folder named `workflows`. Next,
+within the `workflows` folder create a new file, `ci.yml` and add the following content to it:
+
+```yml
+name: ci
+on:
+  - push
+  - pull_request
+jobs:
+  test:
+    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+          - '1.6'
+          - '1.7'
+          - 'nightly'
+        os:
+          - ubuntu-latest
+          - macOS-latest
+          - windows-latest
+        arch:
+          - x64
+    steps:
+      - uses: actions/checkout@v2
+      - uses: julia-actions/setup-julia@latest
+        with:
+          version: ${{ matrix.version }}
+          arch: ${{ matrix.arch }}
+      - uses: julia-actions/julia-buildpkg@latest
+      - uses: julia-actions/julia-runtest@latest
+```
+
+This configuration file will run our test suite on every git push and git pull request, on three Julia versions (1.6, 1.7, and nightly),
+on the three main operating systems. Our testing strategy covers all the relevant Julia versions: 1.6 is LTS, 1.7 is stable, and 1.8 is
+nightly. (At the moment of writing this, Julia 1.8 is still pre-release (nightly), but if by the time you read the Julia
+1.8 version is released, make sure to also explicitly add it.)
+
+When you finish don't forget to push the changes to Github:
+
+```bash
+> git add .
+> git commit -m "CI"
+> git push -u origin main
+```
+
+That's it, now our application is fully configured on Github.
 
 ## Deploying Genie apps with Git and Docker containers
 
@@ -320,14 +372,106 @@ Now that we have confirmed that our application runs correctly in a Docker conta
 the multitude of web hosting services that support Docker container deployments. By using Docker containers, we can be sure
 that the exact setup described in the `Dockerfile` and tested on our machine will be run and configured by our hosting service.
 
-### AWS
+### AWS EC2 hosting
 
+AWS is the most popular hosting platform at the moment so let's see how to deploy our Genie app there. AWS has a multitude of
+services (over 100) providing a huge array of possible deployment setups. Most of the AWS configurations are quite complex and
+go beyond the scope of this chapter, with large books and month long certifications programs being dedicated to this task.
+As such, we chose the simplest and most straightforward way to get the application up and running -- which is not necessarily
+the best way to run production applications at scale.
 
+To follow through with the next section you will need a free AWS account -- a credit card is required in order to open the AWS account.
 
-## Deploying Genie apps behind a web server
+Start by going to <https://signin.aws.amazon.com> and login -- if you don't have an account already, sign up. Once you sign in
+into the AWS console go to the EC2 dashboard <https://console.aws.amazon.com/ec2/v2/home> and click on "Launch instances".
+In the "Launch Instance" wizard first give the instance a name, like "GenieTodoMVC". Then for the OS image search for
+"Amazon linux 2 ami". From the search results pick the 64-bit (x86) "Amazon Linux 2 AMI (HVM) - Kernel 5.10, SSD Volume Type"
+(or newer kernel version if available at the time of reading).
+
+We'll use the `t2.micro` with 1 vCPU and 1 GB of RAM. This image is free tier eligible - meaning that if you qualify for the
+free tier offer, you'll use this for free.
+
+Next create a key pair - to keep things simple we won't use it now but download it and store it safely so you can login to
+your server over SSH in the future.
+
+Then go ahead a create a security group - leave the SSH access and make sure to allow HTTP and HTTPs traffic from the internet.
+
+That's it, we can now launch the instance and go back to the EC2 dashboard. It might take a couple of minutes to see our
+newly created server in the instances table. Once it's visible, select its row and click Actions > Connect (or right click
+on the row and chose "Connect" from the contextual menu). This will open a terminal into the EC2 instance in a new browser
+tab.
+
+#### Installing and configuring Docker
+
+Now that our web server is online we need to install Docker and git to run our deployment workflow:
+
+```bash
+> sudo yum install -y docker
+> sudo yum install -y git
+```
+
+With Docker and git installed, let's make sure that our Docker service runs correctly -- as by default it is disabled:
+
+```bash
+> sudo service docker status
+```
+
+If this command reports that the status is `Active: inactive (dead)` it means that the Docker service has been installed but
+it hasn't been correctly started. We'll start it manually to make sure that all goes well:
+
+```bash
+> sudo service docker start
+```
+
+If no errors, we can check the status again -- we should see `Active: active (running)`.
+
+Now, to set Docker to autostart:
+
+```bash
+> sudo systemctl enable docker
+> sudo usermod -aG docker ec2-user
+```
+
+Finally, restart the EC2 instance:
+
+```bash
+> sudo reboot
+```
+
+This can take a couple of minutes - after restarting, just reconnect back to the server from the EC2 dashboard as described above.
+
+#### Cloning the Github repo
+
+With Docker up and running it's time to clone our app's source code onto the server. We'll use our public Github repo. Run
+this into the EC2 instance terminal:
+
+```bash
+> git clone <HTTPS URL TO YOUR GITHUB REPO>
+```
+
+If you're having problems with accessing your repo, you can use the public repo we have created while writing the
+book, available at <https://github.com/essenciary/GenieTodoMVC>.
+
+Next, move into the app's directory that we just cloned: `cd <YOUR REPO NAME>` -- ex `> cd GenieTodoMVC`.
+
+Time to build our docker container:
+
+```bash
+> docker build . -t todomvc
+```
+
+Once the build completes, we can run our container, mapping our app's port (8000) to port 80 (HTTP) of our EC2 instance:
+
+```bash
+> docker run -d -p 80:8000 todomvc
+```
+
+Now our application will be accessible on the public IPv4 address as well as on the public IPv4 DNS indicated for you
+instance in the EC2 dashboard.
+
+## Deploying Genie apps behind a web proxy
 
 ### Nginx
 
-### Apache
 
 ### Caddy

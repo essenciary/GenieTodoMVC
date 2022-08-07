@@ -16,6 +16,11 @@ SwaggerMarkdown = "1b6eb727-ad4b-44eb-9669-b9596a6e760f"
 
 [compat]
 Genie = "5"
+GenieDeployDocker = "1"
+Inflector = "1"
 SearchLight = "2"
 SearchLightSQLite = "2"
+SwagUI = "0.9"
+SwaggerMarkdown = "0.2"
+
 julia = "1.6"

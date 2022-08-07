@@ -22,6 +22,9 @@ USER genie
 # instantiate Julia packages
 RUN julia -e "using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.precompile(); "
 
+# Compile app
+RUN julia --project compiled/make.jl
+
 # ports
 EXPOSE 8000
 EXPOSE 80
