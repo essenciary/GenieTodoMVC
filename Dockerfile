@@ -22,6 +22,9 @@ USER genie
 # instantiate Julia packages
 RUN julia -e "using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.precompile(); "
 
+# C compiler for PackageCompiler
+RUN apt-get update && apt-get install -y g++
+
 # Compile app
 RUN julia --project compiled/make.jl
 
