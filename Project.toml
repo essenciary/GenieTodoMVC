@@ -6,9 +6,16 @@ version = "0.1.0"
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 Genie = "c43c736e-a2d1-11e8-161f-af95117fbd1e"
+GenieDeployDocker = "a082159f-dd50-4f6d-a3c5-00c38fd36577"
 Inflector = "6d011eab-0732-4556-8808-e463c76bf3b6"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
 SearchLight = "340e8cb6-72eb-11e8-37ce-c97ebeb32050"
 SearchLightSQLite = "21a827c4-482a-11ea-3a19-4d2243a4a2c5"
 SwagUI = "bf05d729-34b2-4f1f-a2f1-2452bece7ebc"
 SwaggerMarkdown = "1b6eb727-ad4b-44eb-9669-b9596a6e760f"
+
+[compat]
+Genie = "5"
+SearchLight = "2"
+SearchLightSQLite = "2"
+julia = "1.6"

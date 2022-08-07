@@ -7,3 +7,11 @@ dev:
 test:
   adapter:  SQLite
   database: db/test.sqlite3
+
+prod:
+  adapter:  SQLite
+  database: db/prod.sqlite3
+
+staging:
+  adapter:  SQLite
+  database: db/staging.sqlite3

@@ -454,7 +454,7 @@ Next, make sure that the `index.jl.html` file is updated as follows:
     <ul class="list-group">
       <% for_each(todos) do todo %>
         <li class="list-group-item form-check form-switch">
-          <input type="checkbox" checked="$(todo.completed ? true : false)" class="form-check-input" id="todo_$(todo.id)"  value="(todo.id)" />
+          <input type="checkbox" checked="$(todo.completed ? true : false)" class="form-check-input" id="todo_$(todo.id)"  value="$(todo.id)" />
           <label class="form-check-label" for="todo_$(todo.id)">$(todo.todo)</label>
         </li>
       <% end %>
@@ -1916,4 +1916,3 @@ The swagger documentation is built by annotating the individual paths, sub-diffe
 In addition, at the end of the file we now have a new route to render the Swagger UI. The route invokes the `render_swagger` function, passing various configuration options to build the docs.
 
 This was all! Our API is now documented and we can use the Swagger UI to browse the API by accessing the `/api/v1/docs` route at <http://localhost:8000/api/v1/docs>. Not only that, but the browser is fully interactive, allowing us to run queries against the API and see the results in real time.
-
