@@ -290,7 +290,29 @@ In addition, per the instructions in the `Dockerfile`, it will bind the app's po
 the port 80 of the Docker host (that is, your computer). This means that, after the familiar Genie loading screen, once confirmed
 that the application is ready, you can access it by simply visiting <http://localhost> in your browser.
 
-##
+## Setting up our Github repo
+
+In this step we'll set up a Github repo for our TodoMVC app. We'll use Github to for two main actions: to set up CI (Continuous
+Integration) and have Github Actions run our test suite every time we push to the repo; and to serve as a public repo that
+we can access from our deployment servers.
+
+For the following actions you will need a free Github account. Login to your Github account and create a new repo to host the app at
+<https://github.com/new>. Give it a good name, like `GenieTodoMVC`. Put a description too if you want then click on "Create repository".
+
+Once the Github repo is created we need to configure your local Genie app to use it. Going back to your computer, in the terminal, in
+the app's folder, run the following (you will need to have `git` installed on your computer):
+
+```bash
+> git init
+> git commit -m "initial commit"
+> git branch -M main
+> git remote add origin <HTTPS URL OF YOUR GITHUB REPO>
+> git push -u origin main
+```
+
+### Setting up Github CI
+
+
 
 ## Deploying Genie apps with Git and Docker containers
 
