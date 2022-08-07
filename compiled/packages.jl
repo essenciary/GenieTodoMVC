@@ -4,7 +4,7 @@ const PACKAGES = [
   "Inflector",
   "Logging",
   "SearchLight",
-  "SearchLightSQLite",
+  "SearchLightMySQL",
   "SwagUI",
   "SwaggerMarkdown"
 ]

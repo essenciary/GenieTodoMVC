@@ -22,6 +22,9 @@ USER genie
 # instantiate Julia packages
 RUN julia -e "using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.precompile(); "
 
+# run migrations
+RUN julia -e "using Pkg; Pkg.activate(\".\"); using SearchLight; SearchLight.Migrations.all_up!!(); "
+
 # C compiler for PackageCompiler
 RUN apt-get update && apt-get install -y g++
 

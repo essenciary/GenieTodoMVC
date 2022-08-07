@@ -8,9 +8,14 @@ test:
   adapter:  SQLite
   database: db/test.sqlite3
 
+# prod:
+#   adapter:  SQLite
+#   database: db/prod.sqlite3
+
 prod:
-  adapter:  SQLite
-  database: db/prod.sqlite3
+  adapter:  MySQL
+  database: todomvc
+  host: database-todomvc.c2f6jbltttwa.eu-west-3.rds.amazonaws.com
 
 staging:
   adapter:  SQLite
