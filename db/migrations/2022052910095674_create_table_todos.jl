@@ -6,7 +6,7 @@ function up()
   create_table(:todos) do
     [
       pk()
-      column(:todo, :string)
+      column(:todo, :string; limit = 1_000)
       column(:completed, :bool; default = false)
     ]
   end

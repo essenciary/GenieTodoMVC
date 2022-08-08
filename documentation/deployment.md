@@ -471,7 +471,10 @@ instance in the EC2 dashboard.
 
 ## Deploying Genie apps behind a web proxy
 
-### Nginx
-
-
 ### Caddy
+
+
+--- todo:
+add info about precompilation
+add info about RDS
+add info about env.list

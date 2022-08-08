@@ -20,16 +20,14 @@ RUN chmod +x bin/runtask
 USER genie
 
 # instantiate Julia packages
-RUN julia -e "using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.precompile(); "
-
-# run migrations
-RUN julia -e "using Pkg; Pkg.activate(\".\"); using SearchLight; SearchLight.Migrations.all_up!!(); "
+# RUN julia -e "using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.precompile(); "
+RUN julia -e "using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); "
 
 # C compiler for PackageCompiler
-RUN apt-get update && apt-get install -y g++
+# RUN apt-get update && apt-get install -y g++
 
 # Compile app
-RUN julia --project compiled/make.jl
+# RUN julia --project compiled/make.jl
 
 # ports
 EXPOSE 8000
@@ -45,6 +43,3 @@ ENV EARLYBIND "true"
 
 # run app
 CMD ["bin/server"]
-
-# or maybe include a Julia file
-# CMD julia -e 'using Pkg; Pkg.activate("."); include("IrisClustering.jl"); '

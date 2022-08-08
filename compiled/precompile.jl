@@ -1,3 +1,5 @@
+ENV["GENIE_ENV"] = "dev"
+
 using Genie
 Genie.loadapp(pwd())
 
