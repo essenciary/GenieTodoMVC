@@ -24,10 +24,10 @@ USER genie
 RUN julia -e "using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); "
 
 # C compiler for PackageCompiler
-# RUN apt-get update && apt-get install -y g++
+RUN apt-get update && apt-get install -y g++
 
 # Compile app
-# RUN julia --project compiled/make.jl
+RUN julia --project compiled/make.jl
 
 # ports
 EXPOSE 8000
