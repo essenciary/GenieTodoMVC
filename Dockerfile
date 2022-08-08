@@ -23,8 +23,7 @@ RUN chmod +x bin/runtask
 USER genie
 
 # instantiate Julia packages
-# RUN julia -e "using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.precompile(); "
-RUN julia -e "using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); "
+RUN julia -e "using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.precompile(); "
 
 # Compile app
 RUN julia --project compiled/make.jl
