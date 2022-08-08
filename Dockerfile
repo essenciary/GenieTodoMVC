@@ -5,7 +5,7 @@ FROM --platform=linux/amd64 julia:latest
 RUN useradd --create-home --shell /bin/bash genie
 
 # C compiler for PackageCompiler
-RUN apt-get update && apt-get install -y g++
+# RUN apt-get update && apt-get install -y g++
 
 # set up the app
 RUN mkdir /home/genie/app
@@ -26,7 +26,7 @@ USER genie
 RUN julia -e "using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.precompile(); "
 
 # Compile app
-RUN julia --project compiled/make.jl
+# RUN julia --project compiled/make.jl
 
 # ports
 EXPOSE 8000
