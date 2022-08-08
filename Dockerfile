@@ -4,6 +4,9 @@ FROM --platform=linux/amd64 julia:latest
 # create dedicated user
 RUN useradd --create-home --shell /bin/bash genie
 
+# C compiler for PackageCompiler
+RUN apt-get update && apt-get install -y g++
+
 # set up the app
 RUN mkdir /home/genie/app
 COPY . /home/genie/app
@@ -22,9 +25,6 @@ USER genie
 # instantiate Julia packages
 # RUN julia -e "using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.precompile(); "
 RUN julia -e "using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); "
-
-# C compiler for PackageCompiler
-RUN apt-get update && apt-get install -y g++
 
 # Compile app
 RUN julia --project compiled/make.jl
