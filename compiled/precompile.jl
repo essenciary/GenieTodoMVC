@@ -23,7 +23,7 @@ end
 
 try
   @info "Making requests"
-  @time HTTP.request("GET", "http://localhost:$PORT")
+  HTTP.request("GET", "http://localhost:$PORT")
 catch
 end
 

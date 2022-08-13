@@ -1,28 +1,31 @@
 # Deploying Genie applications in production
 
-Genie, together with some of the packages available in the ecosystem provide a a multitude of useful features for deploying
+Genie, together with some of the packages available in the ecosystem provide a multitude of useful features for deploying
 and running applications in production.
 
 ## Genie app environments
 
-Genie applications run in the context of an environment, which represents a way of configuring the application with a set of settings.
+Genie applications run in the context of an environment, which is a way of configuring the application with a set of settings
+optimized for a certain task (for instance development, or testing, or high performance execution).
 In other words, we can define multiple environments, each with its specific configuration, and then we can easily swap the environment
 in order to apply all the settings at once.
 
-By default Genie apps are created with 3 environments: dev (which stands for development), prod (for production), and test (for testing).
-Each environment has its own configuration file with the same name, placed inside the config/env/ folder of the app. These
-environments come with preconfigured settings for three common situations.
+By default Genie apps are created with 3 environments: `dev` (which stands for development), `prod` (for production), and `test` (for testing).
+Each environment has its own configuration file with the same name, placed inside the `config/env/` folder of the app. These
+environments come with preconfigured settings for running tasks optimized for the three common situations (development,
+testing and high performance production runtime).
 
-The first one is `dev`, which is the default environment that the app uses, is optimised for running the application during development. It provides
-certain features that make the development process more efficient and productive, such as code reloading and recompilation
-every time when files are saved (by automatically setting up file loading with the Revise.jl package), extensive and rich error messages, and
+The environment that is use the most by developers is `dev`, which is also the default environment that the app uses,
+and is optimised for running the application during development. It provides features that make the development process
+more efficient and productive, such as code reloading and recompilation every time files are saved (by automatically
+setting up file loading with the `Revise.jl` package), extensive and rich error messages and error stacks, and
 automatic serving of assets like images, stylesheets and scripts.
 The `dev` environment also has sensible settings for running the application locally, such as using the `127.0.0.1` host and the
 default Genie port, 8000.
 
 However, the development features such as code reloading, rich error messages, or asset serving are not appropriate when we run
-the application in production either because they slow down the application or because they can expose sensitive information
-that can be exploited by attackers. And here comes in handy the `prod` environment which provides configurations that are optimised
+the application in production -- either because they slow down the application or because they can expose sensitive information
+that can be exploited by attackers. For such situations we use the `prod` environment which provides configurations that are optimised
 for running the application in production. As you might have guessed, the `prod` environment disables code reloading and recompilation,
 disables detailed error messages, and recommends the disabling of assets serving. In addition, productions apps will use by
 default the host `0.0.0.0`, which is usually what's expected when deploying on most hosting platforms.
@@ -55,10 +58,10 @@ ENV["JULIA_REVISE"] = "auto"
 The `config!` method modifies and returns the `Genie.config` object, which is an instance of `Genie.Configuration.Settings` and
 represents the application's configuration. You can probably recognize here some of the configurations we have already mentioned,
 like for instance the host and the port of the application, the logging settings, handling of assets (static files), or various
-formatting options that are useful for development together with watching for file changes.
+formatting options that are useful in development.
 
-We can also add environment dependent settings, like for instance the `JULIA_REVISE` configuration which sets automatic file
-re-compilation when files changes by employing the Revise.jl package.
+We can also use the environment files to add environment dependent settings, like for instance the `JULIA_REVISE`
+configuration which sets automatic file re-compilation when files change, by employing the `Revise.jl` package.
 
 By contrast, take a look at the default `prod.jl` file:
 
@@ -91,7 +94,7 @@ We can see the differences in server configuration (host and port), logging, for
 The three default environments cover some of the most common use cases, but we can define other environments as needed. For
 instance, many development teams commonly use a staging environment, as an intermediary stage between development and production.
 All we need to do in order to enable a new environment is to create the corresponding env file. For instance, we can create a
-copy of our `prod.jl` file and name it `staging.jl` to define a staging environment -- and modifying as necessary:
+copy of our `prod.jl` file and name it `staging.jl` to define a staging environment -- and modifying it as necessary:
 
 ```julia
 # config/env/staging.jl
@@ -112,12 +115,12 @@ ENV["JULIA_REVISE"] = "off"
 ```
 
 The snippet shows a possible `staging` configuration where we keep some of the production settings but enable more comprehensive
-logging and some extra formatting to help us debug potential issues.
+logging and some extra formatting to help us debug potential issues before we release the application in production.
 
 ### SearchLight database environments
 
 Equally important is the ability to automatically configure the database connection based on environments. SearchLight integrates
-with Genie's envs, to dynamically pick the right database connection. This is very important in order to avoid that we
+with Genie's environments to automatically pick the right database connection. This is very important in order to avoid that we
 accidentally pollute or destroy production data when we run our application in development or test.
 
 Remember that we have already configured a distinct test database in our db/connection.yml file.
@@ -140,8 +143,8 @@ to connect to the corresponding database.
 ### Changing the active environment
 
 In the section about unit tests, we have seen how the very first thing in the `test/runtests.jl` file, our test runner,
-is to change the environment of the application to `test`. Now we understand why this is important in order to apply the right
-configuration during tests and to connect to the right SearchLight database.
+is to change the environment of the application to `test`. Now we understand why this is important: to apply the right
+configuration during tests and to connect to the right database.
 
 As such, one way of changing the applications' environment is by passing the env's name as a Julia environment variable, either by
 setting it in the `ENV` global, or by passing it as a command line argument when starting the app. We'll see in just a minute
@@ -156,13 +159,13 @@ prod:
   database: db/prod.sqlite3
 ```
 
-SearchLight will create the `prod.sqlite3` database next time we start the app in the `prod` environment. Let's see how it's done.
+SearchLight will create the `prod.sqlite3` database next time we start the app in the `prod` environment.
 
 #### Starting the application in production
 
 By default Genie apps start in development, as that is the logical first step once an app is created: to develop it. But we
 can easily change the active environment at any time - however, this must be done when the app is started, in order to allow
-the proper loading of the environment's settings. As such, changing the environment requires restarting the app.
+the proper loading of the environment's settings. Otherwise, changing the environment when the app is running requires restarting the app.
 
 ##### Using environment variables
 
@@ -178,17 +181,15 @@ GENIE_BANNER=false PORT=9999 bin/server
 
 This will disable the Genie banner and will start the application on port 9999, producing the following output:
 
-```bash
-> GENIE_BANNER=false PORT=9999 bin/server
-
+```bash=
 Ready!
 
 ┌ Info: 2022-08-07 16:21:56
 └ Web Server starting at http://127.0.0.1:9999 - press Ctrl/Cmd+C to stop the server.
 ```
 
-We can pass the `GENIE_ENV` environment variable to our script in order to start the app with the designated environment, for
-example:
+In the same way, we can pass the `GENIE_ENV` environment variable to our script in order to start the app with the
+designated environment, for example:
 
 ```bash
 > GENIE_ENV=prod bin/server
@@ -213,7 +214,7 @@ active environment. For instance, if we add this line to the `global.jl` file, o
 ENV["GENIE_ENV"] = "prod"
 ```
 
-**Beware that setting the active env in the `global.jl` file will overwrite the configuration set via `GENIE_ENV`.**
+**Setting the active env in the `global.jl` file will always overwrite the configuration set via `GENIE_ENV`.**
 
 #### Running the app in production
 
@@ -223,7 +224,7 @@ Let's restart our app now in production, for example by using the `GENIE_ENV` en
 > GENIE_ENV=prod bin/repl
 ```
 
-Upon restarting the app in prod our database was automatically created, but SearchLight has only created an empty db.
+Upon restarting the app in production our database was automatically created, but SearchLight has only created an empty db.
 We need to set up the database structure by running the database migrations.
 
 ```julia
@@ -231,21 +232,21 @@ julia> using SearchLight
 
 julia> SearchLight.Migration.init()
 
-julia> SearchLight.Migration.all_up!!()
+julia> SearchLight.Migration.allup()
 ```
 
 Now everything is ready for our app to run in production. We can test it by starting the server (`julia> up()`) and visiting
 <http://localhost:8000>. Our todo app should run as expected - but of course, you won't be able to see any of the todo items
 you may have added in development, as in production the app is using the new production db. You'll find the todo items when
 restarting the app in `dev` mode again. This level of data isolation provided by application environments ensures that we
-don't accidentally run dev or test code in production.
+don't accidentally run dev or test code using the production data.
 
 With our app fully configured for running in production, we're now ready to deploy on the internet.
 
-## Containerizing Genie apps with Docker and GenieDeployDocker
+## Containerizing Genie apps with Docker and GenieDeployDocker.jl
 
 Docker deployments are the most common way of releasing and scaling web applications as part of devops workflows. Genie has
-official support for Docker containerization via the GenieDeployDocker plugin. Let's use it to containerize our app.
+official support for Docker containerization via the `GenieDeployDocker` plugin. Let's use it to containerize our app.
 
 We'll start by adding the `GenieDeployDocker` package: `pkg> add GenieDeployDocker`
 
@@ -256,12 +257,12 @@ tells Docker how to containerize our app):
 julia> using GenieDeployDocker
 
 julia> GenieDeployDocker.dockerfile()
-Docker file successfully written at .../TodoMVC/Dockerfile
+Docker file successfully written at /path/to/your/app/TodoMVC/Dockerfile
 ```
 
 If you're familiar with Docker you can take a look at the resulting `Dockerfile`. Right out of the box it contains everything
-that is needed in order to set up a Linux container with Julia, and set up our application, with its dependencies, and start
-the server to listen on the designated ports. You can read more about `Dockerfile` in the official Docker documentation at
+that is needed to set up a Linux container with preinstalled Julia, set up our application and its dependencies, and start
+the server to listen on the designated ports. You can read more about the `Dockerfile` in the official Docker documentation at
 <https://docs.docker.com/engine/reference/builder/>.
 
 We'll need to make only one change in the `Dockerfile` - towards the bottom there is a line that reads `ENV GENIE_ENV "dev"`.
@@ -279,14 +280,14 @@ dependencies, copy our application into the linux container, and finally run the
 `build` command you'll be able to follow the progress of the various steps as the REPL's output.
 
 Once the build finishes, we can "deploy" our application in the Docker container locally - that is, run the container and
-access the application on our computer. Let's do it to confirm that everything works as expected:
+access the application within the container running on our computer. Let's do it to confirm that everything works as expected:
 
 ```julia
 julia> GenieDeployDocker.run()
 ```
 
-This will start our Genie application inside the Docker container, in the production environment, by running the `bin/server` script.
-In addition, per the instructions in the `Dockerfile`, it will bind the app's port inside the container (set to 8000) to
+This will start our Genie application inside the Docker container, in the production environment, by running the `bin/server`
+script -- as configured by the line `CMD ["bin/server"]` in the Dockerfile. In addition, it will bind the app's port inside the container (port 8000) to
 the port 80 of the Docker host (that is, your computer). This means that, after the familiar Genie loading screen, once confirmed
 that the application is ready, you can access it by simply visiting <http://localhost> in your browser.
 
@@ -353,8 +354,8 @@ jobs:
 
 This configuration file will run our test suite on every git push and git pull request, on three Julia versions (1.6, 1.7, and nightly),
 on the three main operating systems. Our testing strategy covers all the relevant Julia versions: 1.6 is LTS, 1.7 is stable, and 1.8 is
-nightly. (At the moment of writing this, Julia 1.8 is still pre-release (nightly), but if by the time you read the Julia
-1.8 version is released, make sure to also explicitly add it.)
+nightly. At the moment of writing this, Julia 1.8 is still pre-release (nightly), but if by the time you read this the Julia
+1.8 version is released, make sure to also explicitly add it.
 
 When you finish don't forget to push the changes to Github:
 
@@ -370,15 +371,14 @@ That's it, now our application is fully configured on Github.
 
 Now that we have confirmed that our application runs correctly in a Docker container, we can deploy our application on any of
 the multitude of web hosting services that support Docker container deployments. By using Docker containers, we can be sure
-that the exact setup described in the `Dockerfile` and tested on our machine will be run and configured by our hosting service.
+that the exact setup described in the `Dockerfile` and tested on our machine will be run and configured on the hosting service.
 
 ### AWS EC2 hosting
 
 AWS is the most popular hosting platform at the moment so let's see how to deploy our Genie app there. AWS has a multitude of
 services (over 100) providing a huge array of possible deployment setups. Most of the AWS configurations are quite complex and
-go beyond the scope of this chapter, with large books and month long certifications programs being dedicated to this task.
-As such, we chose the simplest and most straightforward way to get the application up and running -- which is not necessarily
-the best way to run production applications at scale.
+go beyond the scope of this chapter, with large books and month long certifications programs being dedicated to teach AWS usage.
+We'll go with one of the simplest and most straightforward way to get the application up and running.
 
 To follow through with the next section you will need a free AWS account -- a credit card is required in order to open the AWS account.
 
@@ -391,7 +391,7 @@ In the "Launch Instance" wizard first give the instance a name, like "GenieTodoM
 We'll use the `t2.micro` with 1 vCPU and 1 GB of RAM. This image is free tier eligible - meaning that if you qualify for the
 free tier offer, you'll use this for free.
 
-Next create a key pair - to keep things simple we won't use it now but download it and store it safely so you can login to
+Next create a SSH key pair - to keep things simple we won't use it now but download it and store it safely so you can login to
 your server over SSH in the future.
 
 Then go ahead a create a security group - leave the SSH access and make sure to allow HTTP and HTTPs traffic from the internet.
@@ -446,7 +446,7 @@ With Docker up and running it's time to clone our app's source code onto the ser
 this into the EC2 instance terminal:
 
 ```bash
-> git clone <HTTPS URL TO YOUR GITHUB REPO>
+> git clone <URL TO YOUR GITHUB REPO>
 ```
 
 If you're having problems with accessing your repo, you can use the public repo we have created while writing the
@@ -466,15 +466,380 @@ Once the build completes, we can run our container, mapping our app's port (8000
 > docker run -d -p 80:8000 todomvc
 ```
 
-Now our application will be accessible on the public IPv4 address as well as on the public IPv4 DNS indicated for you
+Now the application will be accessible on the public IPv4 address as well as on the public IPv4 DNS indicated for your
 instance in the EC2 dashboard.
 
-## Deploying Genie apps behind a web proxy
+**You need to access the application over HTTP not HTTPS, as we have not configured an SSL certificate for our app.
+Setting up SSL certificates on AWS for EC2 instances goes beyond the scope of this chapter but you can find the
+information by reading the various guides and tutorials that are publicly available.**
 
-### Caddy
+#### Setting up the production database on AWS
 
+Our application runs well, however there is an issue with our current configuration. Because we're using a SQLite database,
+our database is now inside the container, which exposes our data to be lost if our container is destroyed. In addition,
+SQLite is not the best choice for production databases, for instance due to limitations when it comes to concurrent writes.
+Finally, in general the best practice is to set up the database outside the application's container so that they won't
+compete over resources, especially in a high load scenario.
 
---- todo:
-add info about precompilation
-add info about RDS
-add info about env.list
+As we're using AWS, let's employ one of the available cloud database services available. We'll use RDS which stands for
+Relational Database Service. RDS give us access to managed relational databases in the AWS cloud, including commonly used
+backends like MySQL/MariaDB, PostgreSQL and Oracle. SearchLight supports all three of these, so we have multiple choices -
+we'll go with MariaDB.
+
+Start by visiting the RDS home page at <https://eu-west-3.console.aws.amazon.com/rds/home> and click "Create database". In
+the next step pick "Standard create" for database creation method, "MariaDB" for the engine options, and "Free tier" for the
+template. Then in the "Settings" section you can give a name to the instance (database server) using the "DB Instance Identifier"
+field, and set up the Master username and the Master password. Make sure to write down the user and the pass
+as we'll need them to connect. Leave the rest of the options as default until you get to "Public access" and set that to "Yes".
+Then for the "VPC security group" leave "Choose existing" and pick the security group you have already setup for the web app.
+For the "Database authentication" leave "Password authentication" -- then open "Additional configuration" and put a name for the
+"Initial database name". Leave the rest of the options as defaults and click "Create database" at the bottom of the page.
+
+After this you will be redirected to the Dashboard page <https://console.aws.amazon.com/rds/home?#databases:>.
+You may have to wait a few minutes for the database to be ready, as indicated in the "Status" column showing "Creating".
+
+Once the database instance becomes available you can click on it to see its details. In the "Connectivity and security"
+section you will find the endpoint and the port that can be used to connect to the db. We can now test that our DB is
+set up and accessible by connecting from our computer, using a MySQL client. If you don't have one you can try DbGate, a
+free database client supported on all major operating systems <https://dbgate.org/database/mysql-client.html>.
+
+Open the MySQL client and configure it to use the "endpoint" as the host, use the default port 3306, and input the master user
+and master password for username and password. If you have the option to configure the default database, put the name of the
+db you have configured when setting up the RDS instance. If all went well you will be able to confirm the correct setup by
+successfully connecting to the RDS database.
+
+#### Preparing our production app to use the RDS database
+
+Now that we have configured our database we need to ensure that it can be used by our app. There are two things we need to
+address: connecting to the RDS database, and ensuring that all database migrations are run.
+
+##### Automating database migrations
+
+Let's start with the migrations. We want to make sure that all the migrations are automatically run in production for every
+build we release. The simplest way to do this is to configure this to be run every time the application is started, and we
+can achieve this by adding the following code at the bottom of the `config/initializers/searchlight.jl` file:
+
+```julia
+try
+  SearchLight.Migration.init()
+catch
+end
+SearchLight.Migration.allup()
+```
+
+Now every time the app starts it will ensure that the migrations are configured and that all the available migrations are up.
+The `Migration.init` method will through an exception if it has already been run, so we put it in a `try/catch` block. The
+`Migration.allup` function however will not through any exception if the migrations are already up, it will simply not run
+any migrations if all are up.
+
+##### Configuring the RDS database connection
+
+Now it's time to configure our application to use the RDS database. You might be tempted to just go and add the
+connection info to the `db/connection.yml` file. This can be a viable option in most situations, but give our flow, where
+we use a public Github repo, it's a bad idea. Our `db/connection.yml` is pushed to the Github repo, exposing the connection
+info to our publicly accessible database, meaning that anybody would be able to connect to our db!
+Instead we'll pass the database connection info as environment variables for our Docker container on AWS.
+
+What we need to configure though is the fact that we'll use the MySQL adapter -- and we can also safely set the name of the
+database. So comment out or delete the current `prod` connection that uses SQLite and add the following MySQL connection:
+
+```yml
+prod:
+  adapter:  MySQL
+  database: <name of your database>
+```
+
+We also need to add `SearchLightMySQL` as a dependency of our app, otherwise SearchLight won't be able to connect to the
+MariaDB backend. In the app's Julia REPL run:
+
+```julia
+(GenieTodoMVC) pkg> add SearchLightMySQL
+```
+
+When finished, push the changes to Github:
+
+```bash
+> git commit -am "MySQL support and autorun migrations"
+> git push -u origin main
+```
+
+Next go to AWS > EC2 Dashboard > Instances <https://console.aws.amazon.com/ec2/v2/home?#Instances:instanceState=running> and
+connect to the EC2 instance we created earlier (the web server).
+
+Once connected check if the container is running -- and if yes, get its name:
+
+```bash
+> docker container ls
+```
+
+Stop the running container using:
+
+```bash
+> docker stop <name of container>
+```
+
+Now make sure that you move into the applications' folder, ex `cd GenieTodoMVC` and pull the changes from the Github repo
+with `git pull`.
+
+Almost done. The last step is to make the database information available to our container. One way is to pass all the info
+as environment variables to the `docker` command, like this:
+
+```bash
+SEARCHLIGHT_USERNAME=<master username> SEARCHLIGHT_PASSWORD=<master password> SEARCHLIGHT_HOST=<database endpoint> docker run -d -p 80:8000 todomvc
+```
+
+However, this is a bit verbose - but also, it creates a potential security issue as the command, including the database login info,
+would be stored in the terminal's history. We're better off using another docker feature, namely the `env-file` option. This
+allows us to pass an environment text file that includes all the connection data. Let's create this env file and use it.
+We'll use the `nano` text editor which should already be available on the Linux instance (if it's not, add it with `sudo yum install nano`).
+
+```bash
+> nano ../env.list
+```
+
+The nano editor will create the file and open it up for editing. Type in the following content, putting your actual connection
+data:
+
+```cmd
+SEARCHLIGHT_HOST=<database endpoint>
+SEARCHLIGHT_USERNAME=<master username>
+SEARCHLIGHT_PASSWORD=<master password>
+```
+
+Save the file (Ctr+O) and exit (Ctrl+X).
+
+That's all - now we can start the server by running the docker container:
+
+```bash
+> docker run -d -p 80:8000 --env-file=../env.list todomvc
+```
+
+It might take a bit to start. If you want to peek into the running logs of the app, you can check the container's logs as follows:
+
+```bash
+ > docker container ls
+```
+
+and get the name of the container -- then:
+
+```bash
+> docker logs <name of container>
+```
+
+Once the app is ready you can access it on the container's public IPv4 address or on the public IPv4 DNS, as listed in the
+EC2 instance summary page.
+
+**Remember to use HTTP not HTTPS, as we have not configured an SSL certificate for our app. Setting up SSL certificates on
+AWS for EC2 instances goes beyond the scope of this chapter but you can find the information by reading the various guides
+and tutorials that are publicly available.**
+
+## Improving application startup time with PackageCompiler.jl
+
+Because Julia uses Just-In-Time compilation, the application's code is automatically compiled while the application is running,
+the compilation being triggered as needed, every time a piece of code that has not been already compiled is invoked. As such,
+when an application is started, a large part of the codebase will need to be compiled. Understandably, this initial compilation
+time, during which the application is unresponsive, can be a problem -- and even more so for a web application, where response
+times are critical.
+
+**It's important to understand that we're talking only about the initial response times, after the application is started,
+when most of the codebase is JIT compiled. This is known in Julia parlance as "time to first plot". Once the initial
+compilation is completed the application will run and respond very fast, which is a great feature for web applications which
+can run for weeks and months between restarts.**
+
+Thanks to the efforts of the Julia stewards and the community, time to first plot kept going down -- and work is being done
+to allow ahead of time compilation for Julia apps. Meanwhile, one of the best solutions available today is to use
+`PackageCompiler.jl` <https://github.com/JuliaLang/PackageCompiler.jl> to create a custom Julia library, called a sysimage,
+that is optimized for our specific application, to reduce the startup latency of our app.
+
+**Technically this process is about creating a custom sysimage. The details of this process are beyond the scope of this
+chapter but you can read about it at <https://julialang.github.io/PackageCompiler.jl/stable/sysimages.html>**
+
+### Extending our Docker flow to include sysimage creation
+
+We'll use our `Dockerfile` to define the steps for generating the sysimage so that it's automatically created each time we
+build our app in the docker container. Edit the `Dockerfile` and add the following lines of code. After
+`RUN useradd --create-home --shell /bin/bash genie` add
+
+```dockerfile
+# C compiler for PackageCompiler
+RUN apt-get update && apt-get install -y g++
+```
+
+This simply instructs Docker to install the `g++` compiler which is needed by `PackageCompiler.jl`.
+
+Then after `RUN julia -e "using Pkg; Pkg.activate(\".\"); Pkg.instantiate(); Pkg.precompile(); "` add
+
+```dockerfile
+# Compile sysimage
+RUN julia --project compiled/make.jl
+```
+
+This line runs a Julia script which handles the sysimage creation process. Let's set it up. Create the `compiled/` folder
+inside the app's directory and inside it add the `make.jl` file with the following content:
+
+```julia
+using PackageCompiler
+
+include("packages.jl")
+
+PackageCompiler.create_sysimage(
+  PACKAGES,
+  sysimage_path = "compiled/sysimg.so",
+  precompile_execution_file = "compiled/precompile.jl",
+  cpu_target = PackageCompiler.default_app_cpu_target()
+)
+```
+
+This file calls the `PackageCompiler.create_sysimage` function, passing the packages that need to be added to the sysimage,
+the path to where the sysimage should be saved, and the path to the precompilation file. The precompilation file is
+a file that runs the app to trigger the JIT compilation our code and store the compiled parts in the sysimage.
+
+Now create the `compiled/packages.jl` file with the following content:
+
+```julia
+const PACKAGES = [
+  "Genie",
+  "HTTP",
+  "Inflector",
+  "Logging",
+  "SearchLight",
+  "SearchLightMySQL",
+  "SwagUI",
+  "SwaggerMarkdown"
+```
+
+Here we define a constant `PACKAGES` that lists the packages we want included in the custom sysimage. These are the specific
+packages used by the app when running in production.
+
+And the `compiled/precompile.jl` like this:
+
+```julia
+ENV["GENIE_ENV"] = "dev"
+
+using Genie
+Genie.loadapp(pwd())
+
+import HTTP
+
+@info "Hitting routes"
+for r in Genie.Router.routes()
+  try
+    r.action()
+  catch
+  end
+end
+
+const PORT = 50515
+
+try
+  @info "Starting server"
+  up(PORT)
+catch
+end
+
+try
+  @info "Making requests"
+  HTTP.request("GET", "http://localhost:$PORT")
+catch
+end
+
+try
+  @info "Stopping server"
+  Genie.Server.down!()
+catch
+end
+```
+
+This is a simple script that invokes the route handlers in the "Hitting routes" section, before starting the server, making
+a request to the home page and then stopping the server.
+
+Next, as our application will use the custom sysimage, we must configure it to load it. For this, we'll edit the `bin/server`
+file to add the `--sysimage` option, pointing to the location of our custom `sysimage` file. Make the file look like this:
+
+```bash
+julia --color=yes --depwarn=no --project=@. --sysimage=compiled/sysimg.so -q -i -- $(dirname $0)/../bootstrap.jl -s=true "$@"
+```
+
+Finally, going back to our app's Julia REPL, we'll need to add `PackageCompiler.jl` as a dependency:
+
+```julia
+(GenieTodoMVC) pkg> add PackageCompiler
+```
+
+If you want, you can now run build in Docker to make sure that everything is right (but beware that the sysimage generation
+step can take quite a long time, depending on the performance of your computer).
+
+### Deploying our optimized app on Heroku
+
+In the last part of the chapter let's see how to deploy our containerized application to another hosting provider: Heroku.
+Heroku has less features compared to AWS and can be more expensive to host applications there -- however, it is much easier
+to set up and configure, providing a friendly UI for common tasks such as setting up an SSL certificate or configuring a
+custom domain name. Another good part is that it provides smalls servers for free.
+
+If you don't have an account already, start by creating a free Heroku account by visiting <https://www.heroku.com>.
+
+Genie greatly simplifies Heroku deployments thanks to the `GenieDeployHeroku.jl` package, so let's add it:
+
+```julia
+(GenieTodoMVC) pkg> add GenieDeployHeroku
+```
+
+The package uses the Heroku CLI, which needs to be installed manually. Follow the instructions for your operating system
+from <https://devcenter.heroku.com/articles/heroku-cli#install-the-heroku-cli>. Once the CLI is installed, in the app's
+Julia REPL run:
+
+```julia
+julia> GenieDeployHeroku.login()
+```
+
+Follow the instructions to login to your Heroku account.
+
+Once logged in we can create a new app instance on Heroku to host our application, with:
+
+```julia
+julia> GenieDeployHeroku.createapp("<name of the app>")
+```
+
+Now we're ready to build our container:
+
+```julia
+julia> GenieDeployHeroku.push("<name of the app>")
+```
+
+This will trigger the Docker build process, which will also include the sysimage create step.
+
+When finished (this can take a long time -- even half an hour or more, depending on the performance of your computer), we can
+release the application in production.
+
+But before we do that, remember, we need to configure the database connection. Heroku offers less control over the server
+environment, so we can't open an SSH session and run docker manually. However, similar features are offered by Heroku using
+its web UI. Go to <heroku.com> and check your app's list: <https://dashboard.heroku.com/apps>. You should see there the newly
+created app. Click on it to see its details. Go to the "Settings" tab and click on "Reveal Config Vars". This is the place
+where we can add environment variables that will be passed to the docker process. Go ahead and add three config vars:
+`SEARCHLIGHT_HOST`, `SEARCHLIGHT_USERNAME`, and `SEARCHLIGHT_PASSWORD` -- and for the values set the RDS database endpoint for the
+host, and the master username and password for the other two. As you can see we will be using the same database as before --
+but if you want to try for yourself, Heroku also provides a similar managed cloud database service.
+
+Now we can deploy the app in production:
+
+```julia
+julia> GenieDeployHeroku.release("<name of the app>")
+```
+
+And finally, we can open the browser to navigate to our live app using:
+
+```julia
+julia> GenieDeployHeroku.open("<name of the app>")
+```
+
+## Conclusions
+
+Containerized deployments using Docker are some of the most commonly used application deployment strategies today. Virtually
+all the modern hosting platforms provide support for Docker deployment, from basic to very complex configurations that use
+container orchestration frameworks like Docker Compose or Kubernetes. Docker deployments are very useful because using the
+Dockerfile we can implement complex build and release workflow that will run the same everywhere. This is especially useful
+for Genie applications where we want to take advantage of environments and apply optimisation techniques, including the
+building of custom sysimage. Custom sysimages help by greatly reducing compilation and thus compilation time, decreasing the
+so called "time to first plot" -- and also reduces memory and CPU needs for the app, allowing us to deploy on small
+servers, like the free Heroku ones. Finally, the Genie package ecosystem greatly simplifies the productionizing of Genie web
+apps through easy to use deployment plugins like `GenieDeployDocker` and `GenieDeployHeroku`.

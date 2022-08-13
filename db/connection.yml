@@ -15,7 +15,6 @@ test:
 prod:
   adapter:  MySQL
   database: todomvc
-  host: database-todomvc.c2f6jbltttwa.eu-west-3.rds.amazonaws.com
 
 staging:
   adapter:  SQLite

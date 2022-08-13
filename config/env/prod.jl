@@ -17,3 +17,5 @@ if Genie.config.server_handle_static_files
 end
 
 ENV["JULIA_REVISE"] = "off"
+
+Genie.Secrets.secret_file_exists() || Genie.Generator.write_secrets_file()
