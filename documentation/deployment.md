@@ -1,22 +1,22 @@
 # Deploying Genie applications in production
 
-Genie, together with some of the packages available in the ecosystem provide a multitude of useful features for deploying
-and running applications in production.
+Genie, together with some of the packages available in the Genie ecosystem provide a multitude of useful features for deploying
+and running applications in demanding production environments, with a focus on performance, stability and security.
 
 ## Genie app environments
 
-Genie applications run in the context of an environment, which is a way of configuring the application with a set of settings
-optimized for a certain task (for instance development, or testing, or high performance execution).
+Genie applications run in the context of an environment, which is a way of configuring a Genie application with a group of settings that
+optimized for a certain task (for instance optimized for development, or testing, or high performance execution in production).
 In other words, we can define multiple environments, each with its specific configuration, and then we can easily swap the environment
-in order to apply all the settings at once.
+to enable all the corresponding settings at once.
 
-By default Genie apps are created with 3 environments: `dev` (which stands for development), `prod` (for production), and `test` (for testing).
+Out of the box Genie apps come with three environments: `dev` (which stands for development), `prod` (for production), and `test` (for testing).
 Each environment has its own configuration file with the same name, placed inside the `config/env/` folder of the app. These
-environments come with preconfigured settings for running tasks optimized for the three common situations (development,
-testing and high performance production runtime).
+environments come with preconfigured settings for running tasks optimized for the three common situations: development,
+testing and high performance production runtime.
 
-The environment that is use the most by developers is `dev`, which is also the default environment that the app uses,
-and is optimised for running the application during development. It provides features that make the development process
+The environment that is used the most by developers is `dev`, which is also the default environment that the app uses,
+and is optimised for running the application for development. It provides features that make the development process
 more efficient and productive, such as code reloading and recompilation every time files are saved (by automatically
 setting up file loading with the `Revise.jl` package), extensive and rich error messages and error stacks, and
 automatic serving of assets like images, stylesheets and scripts.
@@ -26,7 +26,7 @@ default Genie port, 8000.
 However, the development features such as code reloading, rich error messages, or asset serving are not appropriate when we run
 the application in production -- either because they slow down the application or because they can expose sensitive information
 that can be exploited by attackers. For such situations we use the `prod` environment which provides configurations that are optimised
-for running the application in production. As you might have guessed, the `prod` environment disables code reloading and recompilation,
+for running the application in production. The `prod` environment disables code reloading and recompilation,
 disables detailed error messages, and recommends the disabling of assets serving. In addition, productions apps will use by
 default the host `0.0.0.0`, which is usually what's expected when deploying on most hosting platforms.
 
@@ -633,6 +633,23 @@ EC2 instance summary page.
 AWS for EC2 instances goes beyond the scope of this chapter but you can find the information by reading the various guides
 and tutorials that are publicly available.**
 
+##### Auto-generating the secrets.jl file
+
+If you looked at the Docker container's logs, you may have noticed that the production app shows a warning that "No secret
+token is defined". The secret token is a unique random sequence of characters, that is different for each Genie app, and is
+used to encrypt data used by the application, like sessions and cookies. This token is stored in the `config/secrets.jl` file
+which is by default added to `.gitignore` meaning that it won't be pushed to our Github repo and it won't be pulled onto our
+server. The reason for this is to avoid that we accidentally push sensitive data to public Github repos.
+
+The problem however is that if the `secrets.jl` file is missing, Genie will generate a temporary one and use it to encrypt the
+data. Every time the app is restarted, a new secret token is generated -- and when it changes, data encrypted with a different
+secret, can't be decrypted. So let's extend our application to make sure that production apps automatically generate their
+secret file, by adding the following line at the bottom of `config/env/prod.jl`:
+
+```julia
+Genie.Secrets.secret_file_exists() || Genie.Generator.write_secrets_file()
+```
+
 ## Improving application startup time with PackageCompiler.jl
 
 Because Julia uses Just-In-Time compilation, the application's code is automatically compiled while the application is running,
@@ -832,14 +849,21 @@ And finally, we can open the browser to navigate to our live app using:
 julia> GenieDeployHeroku.open("<name of the app>")
 ```
 
+**If you want to run an application that uses a custom sysimage on AWS, beware that the compilation part of the Docker build
+process needs quite a lot of resources. In my tests, building the docker container with custom sysimage failed on a 4 GB `t2.medium` EC2
+instance, and was successful on a 8 GB `t2.large` instance.**
+
 ## Conclusions
 
 Containerized deployments using Docker are some of the most commonly used application deployment strategies today. Virtually
 all the modern hosting platforms provide support for Docker deployment, from basic to very complex configurations that use
-container orchestration frameworks like Docker Compose or Kubernetes. Docker deployments are very useful because using the
-Dockerfile we can implement complex build and release workflow that will run the same everywhere. This is especially useful
-for Genie applications where we want to take advantage of environments and apply optimisation techniques, including the
-building of custom sysimage. Custom sysimages help by greatly reducing compilation and thus compilation time, decreasing the
+container orchestration frameworks like Docker Compose or Kubernetes.
+
+Docker deployments are very useful because using the Dockerfile we can implement complex build and release workflow that
+will run the same everywhere. This is especially useful for Genie applications where we want to take advantage of
+environments and apply optimisation techniques, including the building of custom sysimage.
+
+Custom sysimages help by greatly reducing compilation and thus compilation time, decreasing the
 so called "time to first plot" -- and also reduces memory and CPU needs for the app, allowing us to deploy on small
 servers, like the free Heroku ones. Finally, the Genie package ecosystem greatly simplifies the productionizing of Genie web
 apps through easy to use deployment plugins like `GenieDeployDocker` and `GenieDeployHeroku`.
