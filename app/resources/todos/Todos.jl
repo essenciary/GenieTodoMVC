@@ -13,6 +13,7 @@ export Todo
   id::DbId = DbId()
   todo::String = ""
   completed::Bool = false
+  user_id::DbId = DbId()
 end
 
 SearchLight.Validation.validator(::Type{Todo}) = ModelValidator([

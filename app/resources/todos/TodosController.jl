@@ -9,9 +9,14 @@ using Genie.Renderers.Json
 using Genie.Requests
 using TodoMVC.ViewHelper
 
+using GenieAuthentication
+using TodoMVC.AuthenticationController
+
+using TodoMVC
+
 function count_todos()
-  notdonetodos = count(Todo, completed = false)
-  donetodos = count(Todo, completed = true)
+  notdonetodos = count(Todo, completed = false, user_id = current_user_id())
+  donetodos = count(Todo, completed = true, user_id = current_user_id())
 
   (
     notdonetodos = notdonetodos,
@@ -22,16 +27,19 @@ end
 
 function todos()
   todos = if params(:filter, "") == "done"
-    find(Todo, completed = true)
+    find(Todo, completed = true, user_id = current_user_id())
   elseif params(:filter, "") == "notdone"
-    find(Todo, completed = false)
+    find(Todo, completed = false, user_id = current_user_id())
   else
-    all(Todo; limit = params(:limit, SearchLight.SQLLimit_ALL) |> SQLLimit,
-              offset = (parse(Int, params(:page, "1"))-1) * parse(Int, params(:limit, "0")))
+    find(Todo;  limit = params(:limit, SearchLight.SQLLimit_ALL) |> SQLLimit,
+                offset = (parse(Int, params(:page, "1"))-1) * parse(Int, params(:limit, "0")),
+                user_id = current_user_id())
   end
 end
 
 function index()
+  authenticated!()
+
   html(:todos, :index; todos = todos(), count_todos()..., ViewHelper.active)
 end
 
@@ -51,7 +59,7 @@ function create()
 end
 
 function toggle()
-  todo = findone(Todo, id = params(:id))
+  todo = findone(Todo, id = params(:id), user_id = current_user_id())
   if todo === nothing
     return Router.error(NOT_FOUND, "Todo item with id $(params(:id))", MIME"text/html")
   end
@@ -62,7 +70,7 @@ function toggle()
 end
 
 function update()
-  todo = findone(Todo, id = params(:id))
+  todo = findone(Todo, id = params(:id), user_id = current_user_id())
   if todo === nothing
     return Router.error(NOT_FOUND, "Todo item with id $(params(:id))", MIME"text/html")
   end
@@ -73,7 +81,7 @@ function update()
 end
 
 function delete()
-  todo = findone(Todo, id = params(:id))
+  todo = findone(Todo, id = params(:id), user_id = current_user_id())
   if todo === nothing
     return Router.error(NOT_FOUND, "Todo item with id $(params(:id))", MIME"text/html")
   end
@@ -101,7 +109,7 @@ function list()
 end
 
 function item()
-  todo = findone(Todo, id = params(:id))
+  todo = findone(Todo, id = params(:id), user_id = current_user_id())
   if todo === nothing
     return JSONException(status = NOT_FOUND, message = "Todo not found") |> json
   end
@@ -153,7 +161,7 @@ function update()
     return json(ex)
   end
 
-  todo = findone(Todo, id = params(:id))
+  todo = findone(Todo, id = params(:id), user_id = current_user_id())
   if todo === nothing
     return JSONException(status = NOT_FOUND, message = "Todo not found") |> json
   end
@@ -165,7 +173,7 @@ function update()
 end
 
 function delete()
-  todo = findone(Todo, id = params(:id))
+  todo = findone(Todo, id = params(:id), user_id = current_user_id())
   if todo === nothing
     return JSONException(status = NOT_FOUND, message = "Todo not found") |> json
   end
