@@ -11,7 +11,6 @@ using TodoMVC.ViewHelper
 
 using GenieAuthentication
 using TodoMVC.AuthenticationController
-
 using TodoMVC
 
 function count_todos()
@@ -44,7 +43,9 @@ function index()
 end
 
 function create()
-  todo = Todo(todo = params(:todo))
+  authenticated!()
+
+  todo = Todo(todo = params(:todo), user_id = current_user_id())
 
   validator = validate(todo)
   if haserrors(validator)
@@ -59,6 +60,8 @@ function create()
 end
 
 function toggle()
+  authenticated!()
+
   todo = findone(Todo, id = params(:id), user_id = current_user_id())
   if todo === nothing
     return Router.error(NOT_FOUND, "Todo item with id $(params(:id))", MIME"text/html")
@@ -70,6 +73,8 @@ function toggle()
 end
 
 function update()
+  authenticated!()
+
   todo = findone(Todo, id = params(:id), user_id = current_user_id())
   if todo === nothing
     return Router.error(NOT_FOUND, "Todo item with id $(params(:id))", MIME"text/html")
@@ -81,6 +86,8 @@ function update()
 end
 
 function delete()
+  authenticated!()
+
   todo = findone(Todo, id = params(:id), user_id = current_user_id())
   if todo === nothing
     return Router.error(NOT_FOUND, "Todo item with id $(params(:id))", MIME"text/html")
@@ -104,11 +111,22 @@ using Genie.Requests
 using SearchLight
 using SearchLight.Validation
 
+using GenieAuthentication
+using TodoMVC.AuthenticationController
+using TodoMVC
+
+using Genie.Exceptions
+const NOT_AUTHORISED_ERROR = ExceptionalResponse(401, ["Content-Type" => "application/json"], "Not authorised")
+
 function list()
+  authenticated!(NOT_AUTHORISED_ERROR)
+
   TodosController.todos() |> json
 end
 
 function item()
+  authenticated!(NOT_AUTHORISED_ERROR)
+
   todo = findone(Todo, id = params(:id), user_id = current_user_id())
   if todo === nothing
     return JSONException(status = NOT_FOUND, message = "Todo not found") |> json
@@ -124,6 +142,8 @@ function check_payload(payload = Requests.jsonpayload())
 end
 
 function persist(todo)
+  authenticated!(NOT_AUTHORISED_ERROR)
+
   validator = validate(todo)
   if haserrors(validator)
     return JSONException(status = BAD_REQUEST, message = errors_to_string(validator)) |> json
@@ -143,18 +163,22 @@ function persist(todo)
 end
 
 function create()
+  authenticated!(NOT_AUTHORISED_ERROR)
+
   payload = try
     check_payload()
   catch ex
     return json(ex)
   end
 
-  todo = Todo(todo = get(payload, "todo", ""), completed = get(payload, "completed", false))
+  todo = Todo(todo = get(payload, "todo", ""), completed = get(payload, "completed", false), user_id = current_user_id())
 
   persist(todo)
 end
 
 function update()
+  authenticated!(NOT_AUTHORISED_ERROR)
+
   payload = try
     check_payload()
   catch ex
@@ -173,6 +197,8 @@ function update()
 end
 
 function delete()
+  authenticated!(NOT_AUTHORISED_ERROR)
+
   todo = findone(Todo, id = params(:id), user_id = current_user_id())
   if todo === nothing
     return JSONException(status = NOT_FOUND, message = "Todo not found") |> json

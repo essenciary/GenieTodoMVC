@@ -22,6 +22,9 @@ using Main.TodoMVC, Test, TestSetExtensions, Logging
 
 Logging.global_logger(NullLogger())
 
+using Base64
+const DEFAULT_HEADERS = Dict("Authorization" => "Basic $(base64encode("testuser:testpass"))")
+
 @testset ExtendedTestSet "TodoMVC tests" begin
   @includetests ARGS
 end

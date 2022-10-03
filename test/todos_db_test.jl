@@ -1,13 +1,9 @@
 using Test, SearchLight, Main.UserApp, Main.UserApp.Todos
 using SearchLight.Validation, SearchLight.Exceptions
 
-try
-  SearchLight.Migrations.init()
-catch
-end
-
-SearchLight.config.db_migrations_folder = abspath(normpath(joinpath("..", "db", "migrations")))
-SearchLight.Migrations.all_up!!()
+cd("..")
+SearchLight.Migrations.alldown!(context = @__MODULE__, confirm = false)
+SearchLight.Migrations.allup(context = @__MODULE__)
 
 @testset "Todo DB tests" begin
   t = Todo()
@@ -19,6 +15,7 @@ SearchLight.Migrations.all_up!!()
 
   @testset "Valid todo is saved" begin
     t.todo = "Buy milk"
+    t.user_id = 1
     @test save(t) == true
 
     tx = save!(t)
@@ -30,4 +27,5 @@ SearchLight.Migrations.all_up!!()
 
 end;
 
-SearchLight.Migrations.all_down!!(confirm = false)
+SearchLight.Migrations.alldown!(context = @__MODULE__, confirm = false)
+cd(@__DIR__)

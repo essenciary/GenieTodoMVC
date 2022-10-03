@@ -7,6 +7,7 @@ using SearchLight.Validation
   @testset "Todo is correctly initialized" begin
     @test t.todo == ""
     @test t.completed == false
+    @test t.user_id.value == nothing
   end
 
   @testset "Todo validates correctly" begin
@@ -20,6 +21,7 @@ using SearchLight.Validation
 
     @testset "Todo is valid" begin
       t.todo = "Buy milk"
+      t.user_id = 1
       v = validate(t)
 
       @test haserrors(v) == false
