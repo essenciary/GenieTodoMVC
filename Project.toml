@@ -5,6 +5,7 @@ version = "0.1.0"
 
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+Faker = "0efc519c-db33-5916-ab87-703215c3906f"
 Genie = "c43c736e-a2d1-11e8-161f-af95117fbd1e"
 GenieAuthentication = "e115e502-7e3a-11e9-29b2-aba8be6c6778"
 GenieDeployDocker = "a082159f-dd50-4f6d-a3c5-00c38fd36577"
@@ -18,8 +19,6 @@ SearchLight = "340e8cb6-72eb-11e8-37ce-c97ebeb32050"
 SearchLightMySQL = "1297d576-4826-11ea-035e-9995c721bad1"
 SearchLightSQLite = "21a827c4-482a-11ea-3a19-4d2243a4a2c5"
 Stipple = "4acbeb90-81a0-11ea-1966-bdaff8155998"
-StipplePlotly = "ec984513-233d-481d-95b0-a3b58b97af2b"
-StippleUI = "a3c5d34a-b254-4859-a8fa-b86abb7e84a3"
 SwagUI = "bf05d729-34b2-4f1f-a2f1-2452bece7ebc"
 SwaggerMarkdown = "1b6eb727-ad4b-44eb-9669-b9596a6e760f"
 

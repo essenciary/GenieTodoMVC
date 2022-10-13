@@ -1,6 +1,7 @@
-using Genie
 using TodoMVC.TodosController
+using TodoMVC.DashboardController
 using SwagUI, SwaggerMarkdown
+using GenieFramework
 
 route("/", TodosController.index)
 route("/todos", TodosController.create, method = POST)
@@ -146,3 +147,5 @@ route("/api/v1/docs") do
     )
   )
 end
+
+route("/dashboard", DashboardController.index)
