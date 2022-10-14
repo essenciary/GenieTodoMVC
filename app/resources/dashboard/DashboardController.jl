@@ -1,27 +1,23 @@
 module DashboardController
 
-using TodoMVC.Todos
 using GenieFramework
+using TodoMVC.Todos
 using Dates
-
 using GenieAuthentication
-using TodoMVC.AuthenticationController
 
 @handlers begin
-  authenticated!()
-
-  @out todos_by_status_number = PlotData[]
-  @out todos_by_status_time = PlotData[]
-  @out todos_by_category_complete = PlotData[]
-  @out todos_by_category_incomplete = PlotData[]
+  @in filter_startdate = today() - Month(1)
+  @in filter_enddate = today()
 
   @out total_completed = 0
   @out total_incompleted = 0
   @out total_time_completed = 0
   @out total_time_incompleted = 0
 
-  @in filter_startdate = today() - Month(1)
-  @in filter_enddate = today()
+  @out todos_by_status_number = PlotData[]
+  @out todos_by_status_time = PlotData[]
+  @out todos_by_category_complete = PlotData[]
+  @out todos_by_category_incomplete = PlotData[]
 
   @onchangeany isready, filter_startdate, filter_enddate begin
     completed_todos = Todos.search(; completed = true, startdate = filter_startdate, enddate = filter_enddate)
@@ -83,14 +79,13 @@ using TodoMVC.AuthenticationController
         plot = StipplePlotly.Charts.PLOT_TYPE_PIE
       )
     ]
-  end
-end
+  end # onchangeany
+end # handlers
 
 function index()
   authenticated!()
 
-  page = @page("/dashboard", "app/resources/dashboard/views/index.jl")
-  page.route.action()
+  @page("/dashboard", "app/resources/dashboard/views/index.jl").route.action()
 end
 
 end
