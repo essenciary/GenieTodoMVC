@@ -1,9 +1,7 @@
 Html.div(class="container", [
   row([
-    a("Home", href="/")
-  ])
-  row([
     h1("Todos productivity report")
+    btn(color="primary", flat=true, "Home", onclick="javascript:window.location.href='/';")
   ])
 
   row([
