@@ -26,6 +26,7 @@ end
 SearchLight.Validation.validator(::Type{Todo}) = ModelValidator([
   ValidationRule(:todo, TodosValidator.not_empty)
   ValidationRule(:user_id, TodosValidator.dbid_is_not_nothing)
+  ValidationRule(:duration, TodosValidator.is_int)
 ])
 
 function search(; completed = false, startdate = today() - Month(1), enddate = today(), group = ["date"])

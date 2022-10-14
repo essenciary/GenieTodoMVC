@@ -7,11 +7,14 @@
     <link href="/css/app.css" rel="stylesheet" />
   </head>
   <body>
-    <div class="container">
-      <h1>What needs to be done?</h1>
-      <%
-        @yield
-      %>
+    <div class="container-fluid">
+      <% partial("app/layouts/_main_menu.jl.html") %>
+      <div class="container">
+        <h1>What needs to be done?</h1>
+        <%
+          @yield
+        %>
+      </div>
     </div>
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/cash-dom@8.1.1/dist/cash.min.js"></script>

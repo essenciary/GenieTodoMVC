@@ -13,6 +13,10 @@ using GenieAuthentication
 using TodoMVC.AuthenticationController
 using TodoMVC
 
+const TODOS_PER_PAGE = 20
+const PAGINATION_DISPLAY_INTERVAL = 5
+const MAX_PAGINATION_WIDTH = 30
+
 function count_todos()
   notdonetodos = count(Todo, completed = false, user_id = current_user_id())
   donetodos = count(Todo, completed = true, user_id = current_user_id())
@@ -24,28 +28,46 @@ function count_todos()
   )
 end
 
+page() = parse(Int, params(:page, "1"))
+categories() = vcat(SearchLight.query("SELECT DISTINCT category from todos ORDER by category ASC")[!,:category], Todos.CATEGORIES) |> unique! |> sort!
+
+function count_pages()
+  total_pages = count(Todo, user_id = current_user_id()) / TODOS_PER_PAGE |> ceil |> Int
+  current_page = page()
+  prev_page = current_page - 1
+  next_page = current_page < total_pages ? current_page + 1 : 0
+
+  (
+    total_pages = total_pages,
+    current_page = current_page,
+    prev_page = prev_page,
+    next_page = next_page
+  )
+end
+
 function todos()
   todos = if params(:filter, "") == "done"
     find(Todo, completed = true, user_id = current_user_id())
   elseif params(:filter, "") == "notdone"
     find(Todo, completed = false, user_id = current_user_id())
   else
-    find(Todo;  limit = params(:limit, SearchLight.SQLLimit_ALL) |> SQLLimit,
-                offset = (parse(Int, params(:page, "1"))-1) * parse(Int, params(:limit, "0")),
-                user_id = current_user_id())
+    find(Todo;  limit = TODOS_PER_PAGE |> SQLLimit,
+                offset = (page() - 1) * TODOS_PER_PAGE,
+                user_id = current_user_id(),
+                order = "date DESC")
   end
 end
 
 function index()
   authenticated!()
 
-  html(:todos, :index; todos = todos(), count_todos()..., ViewHelper.active)
+  html(:todos, :index; todos = todos(), count_todos()..., count_pages()..., ViewHelper.active, MAX_PAGINATION_WIDTH, PAGINATION_DISPLAY_INTERVAL, categories = categories())
 end
 
 function create()
   authenticated!()
 
-  todo = Todo(todo = params(:todo), user_id = current_user_id())
+  todo = Todo(todo = params(:todo), category = params(:category), duration = params(:duration), user_id = current_user_id())
 
   validator = validate(todo)
   if haserrors(validator)

@@ -2,8 +2,9 @@ using TodoMVC.TodosController
 using TodoMVC.DashboardController
 using SwagUI, SwaggerMarkdown
 using GenieFramework
+@genietools
 
-route("/", TodosController.index)
+route("/", TodosController.index, named = :get_todos)
 route("/todos", TodosController.create, method = POST)
 route("/todos/:id::Int/toggle", TodosController.toggle, method = POST)
 route("/todos/:id::Int/update", TodosController.update, method = POST)
