@@ -125,6 +125,8 @@ randdate() = Dates.today() - Day(rand(0:90))
 randduration() = rand(10:240)
 
 function up()
+  Genie.Configuration.isdev() || return
+
   for i in 1:1_000
     Todo(
       todo = Faker.sentence(),
@@ -145,6 +147,7 @@ function up()
 end
 
 function down()
+  Genie.Configuration.isdev() || return
   throw(SearchLight.Migration.IrreversibleMigrationException(@__MODULE__))
 end
 
@@ -156,6 +159,8 @@ for the new columns. We use the `Faker` package to generate random sentences for
 app as well (`pkg> add Faker`) before running the migration. For the generation of the random categories, dates, and duration values, we declare
 three helper functions (`randcategory`, `randdate`, and `randduration`) that we can reuse to both create new todos and update
 the existing ones (and keep our code DRY).
+
+Also notice that we only run this migration in development mode, so that we don't accidentally overwrite our production data or break our tests.
 
 Now you can run the migration to generate the fake data:
 
