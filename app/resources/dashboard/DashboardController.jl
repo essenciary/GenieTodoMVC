@@ -1,7 +1,7 @@
 module DashboardController
 
 using GenieFramework
-using TodoMVC.Todos
+using TodoMVC, TodoMVC.Todos
 using Dates
 using GenieAuthentication
 

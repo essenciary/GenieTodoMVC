@@ -207,7 +207,7 @@ Now we can edit our `DashboardController.jl` file:
 module DashboardController
 
 using GenieFramework
-using TodoMVC.Todos
+using TodoMVC, TodoMVC.Todos
 using Dates
 using GenieAuthentication
 
@@ -411,10 +411,11 @@ We also pass in the `startdate` and `enddate` parameters to filter the todos by 
 Let's create the `Todos.search` function. Open our `Todos.jl` model file and add the following code at the end of the module (inside the module, after the validators block):
 
 ```julia
-function search(; completed = false, startdate = today() - Month(1), enddate = today(), group = ["date"])
+function search(; completed = false, startdate = today() - Month(1), enddate = today(), group = ["date"], user_id)
   filters = SQLWhereEntity[
       SQLWhereExpression("completed = ?", completed),
-      SQLWhereExpression("date >= ? AND date <= ?", startdate, enddate)
+      SQLWhereExpression("date >= ? AND date <= ?", startdate, enddate),
+      SQLWhereExpression("user_id = ?", user_id)
   ]
 
   DataFrame(Todo, SQLQuery(
