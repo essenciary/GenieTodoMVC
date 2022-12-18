@@ -668,7 +668,7 @@ $(function() {
 
 In addition, we'll add a CSS file to our app (`julia> touch("public/css/app.css")`), right before the closing `</head>` tag in our layout file.
 
-Let's start with the custom CSS, and use it to style our todo items. Add the following code to the `app.css` file:
+Let's start with the custom CSS, and use it to style our todo items. Add the following code to the `app.jl.html` file:
 
 ```html
 <link href="/css/app.css" rel="stylesheet" />
